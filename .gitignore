@@ -1,0 +1,12 @@
+venv/
+data/*.csv
+data/*.db
+__pycache__/
+.pytest_cache/
+*.pyc
+.streamlit/secrets.toml
+.claude/settings.local.json
+
+# Tooling de skills de IA — no forma parte de la demo pública
+.agents/
+skills-lock.json
