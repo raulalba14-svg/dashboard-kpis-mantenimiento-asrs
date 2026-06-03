@@ -4,7 +4,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.data_loader import cargar_tablas, aplicar_filtros_globales
+from src.data_loader import aplicar_filtros_globales
+from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import kpis_globales, disponibilidad_por_equipo
 from src.charts import kpi_card_html
 from src.theme import (
@@ -101,7 +102,7 @@ if not (_rango_ok(rango_a) and _rango_ok(rango_b)):
 tipos_equipo = st.session_state.get("tipos_equipo")
 zonas        = st.session_state.get("zonas")
 
-_cargar = st.cache_data(cargar_tablas)
+_cargar = st.cache_data(cargar_tablas_con_feedback)
 tablas = _cargar()
 
 fa = aplicar_filtros_globales(

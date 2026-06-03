@@ -7,20 +7,70 @@ Sin lógica de KPIs.
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pandas as pd
 
-from src.config import EQUIPOS_CSV, EVENTOS_CSV, MISIONES_CSV, TIPOS_ERROR_CSV
+from src.config import (
+    DATA_DIR,
+    EQUIPOS_CSV,
+    EVENTOS_CSV,
+    MISIONES_CSV,
+    ROOT_DIR,
+    TIPOS_ERROR_CSV,
+)
+
+# Semilla fija → dataset reproducible bit-a-bit (KPIs idénticos en cada arranque).
+SEMILLA_DATASET = 42
+
+_GENERADOR = ROOT_DIR / "scripts" / "generar_datos.py"
+
+
+def datos_disponibles() -> bool:
+    """True si los 4 CSV requeridos existen en disco."""
+    return all(
+        p.exists()
+        for p in (EQUIPOS_CSV, TIPOS_ERROR_CSV, MISIONES_CSV, EVENTOS_CSV)
+    )
+
+
+def asegurar_datos() -> bool:
+    """
+    Garantiza que los 4 CSV existen, generándolos si faltan.
+
+    Devuelve True si tuvo que generarlos (primer arranque en un entorno limpio,
+    p. ej. Streamlit Cloud, donde `data/` está en .gitignore), False si ya
+    estaban. La generación usa la semilla fija → cifras idénticas siempre.
+
+    No depende de Streamlit a propósito: este módulo es I/O puro. El feedback
+    visual (spinner) se aplica desde la capa que sí conoce Streamlit.
+    """
+    if datos_disponibles():
+        return False
+
+    # `scripts/` no es un paquete importable; lo cargamos por ruta de fichero
+    # para reutilizar `generar_dataset` sin duplicar la lógica de generación.
+    spec = importlib.util.spec_from_file_location("generar_datos", _GENERADOR)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"No se pudo cargar el generador en {_GENERADOR}")
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+
+    gen.generar_dataset(DATA_DIR, semilla=SEMILLA_DATASET)
+    return True
 
 
 def cargar_tablas() -> dict[str, pd.DataFrame]:
     """
     Lee los 4 CSV y devuelve un dict con DataFrames tipados.
 
-    Pensado para decorarse con @st.cache_data en la app:
+    Si los CSV no existen (entorno limpio sin `data/`), los genera primero
+    con `asegurar_datos()`. Pensado para decorarse con @st.cache_data:
         cargar_tablas = st.cache_data(cargar_tablas)
     """
+    asegurar_datos()
+
     equipos = pd.read_csv(EQUIPOS_CSV)
     tipos_error = pd.read_csv(TIPOS_ERROR_CSV)
     misiones = pd.read_csv(

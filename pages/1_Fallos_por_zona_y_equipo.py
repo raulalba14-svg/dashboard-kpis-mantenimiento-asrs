@@ -3,7 +3,8 @@
 import streamlit as st
 import pandas as pd
 
-from src.data_loader import cargar_tablas, aplicar_filtros_globales
+from src.data_loader import aplicar_filtros_globales
+from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import posicion_en_fallo
 from src.charts import (
     plano_almacen, barras_ranking_umbrales,
@@ -51,7 +52,7 @@ hero(
 # Carga y filtrado
 # ---------------------------------------------------------------------------
 
-_cargar = st.cache_data(cargar_tablas)
+_cargar = st.cache_data(cargar_tablas_con_feedback)
 tablas = _cargar()
 f = aplicar_filtros_globales(
     tablas,

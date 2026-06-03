@@ -3,7 +3,8 @@
 import streamlit as st
 import pandas as pd
 
-from src.data_loader import cargar_tablas, aplicar_filtros_globales
+from src.data_loader import aplicar_filtros_globales
+from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import (
     kpis_globales, disponibilidad_por_equipo, disponibilidad_mensual,
     delta_vs_periodo_anterior, serie_mensual,
@@ -58,7 +59,7 @@ hero(
 # Carga y filtrado
 # ---------------------------------------------------------------------------
 
-_cargar = st.cache_data(cargar_tablas)
+_cargar = st.cache_data(cargar_tablas_con_feedback)
 tablas = _cargar()
 
 # Eventos globales (sin rango) para calcular el delta vs. periodo anterior.

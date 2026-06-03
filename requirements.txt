@@ -1,6 +1,8 @@
+# Runtime de la app (lo que Streamlit Cloud necesita para arrancar)
 streamlit>=1.35.0
 pandas>=2.2.0
 plotly>=5.22.0
 numpy>=1.26.0
+
+# Desarrollo / CI (no es necesario en Streamlit Cloud, pero es inofensivo)
 pytest>=8.2.0
-streamlit-extras>=0.4.0

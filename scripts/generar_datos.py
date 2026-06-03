@@ -258,6 +258,51 @@ def generar_eventos(
 
 
 # ---------------------------------------------------------------------------
+# Orquestación reutilizable
+# ---------------------------------------------------------------------------
+
+def generar_dataset(salida, semilla: int = 42, verbose: bool = False) -> None:
+    """
+    Genera los 4 CSV coherentes y los escribe en `salida`.
+
+    Reutilizable desde el CLI (`main`) y desde la app (`src.data_loader`),
+    de modo que la lógica de generación vive en un único sitio. La semilla
+    fija (42 por defecto) garantiza un dataset reproducible bit-a-bit: los
+    KPIs (MTTR, MTBF, disponibilidad) son idénticos en cada arranque.
+    """
+    salida = Path(salida)
+    salida.mkdir(parents=True, exist_ok=True)
+
+    rng = np.random.default_rng(semilla)
+
+    def _log(msg, **kw):
+        if verbose:
+            print(msg, **kw)
+
+    _log("Generando tipos_error...", end=" ")
+    te = generar_tipos_error()
+    te.to_csv(salida / "tipos_error.csv", index=False, encoding="utf-8")
+    _log(f"{len(te)} registros")
+
+    _log("Generando equipos...", end=" ")
+    eq = generar_equipos()
+    eq.to_csv(salida / "equipos.csv", index=False, encoding="utf-8")
+    _log(f"{len(eq)} registros")
+
+    _log("Generando misiones...", end=" ", flush=True)
+    mis = generar_misiones(eq, rng)
+    mis.to_csv(salida / "misiones.csv", index=False, encoding="utf-8")
+    _log(f"{len(mis):,} registros")
+
+    _log("Generando eventos_incidencia...", end=" ", flush=True)
+    ev = generar_eventos(mis, te, eq, rng)
+    ev.to_csv(salida / "eventos_incidencia.csv", index=False, encoding="utf-8")
+    _log(f"{len(ev):,} registros")
+
+    _log(f"\nDatos escritos en: {salida.resolve()}")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -267,32 +312,7 @@ def main():
     parser.add_argument("--salida",  type=str, default="data/")
     args = parser.parse_args()
 
-    salida = Path(args.salida)
-    salida.mkdir(parents=True, exist_ok=True)
-
-    rng = np.random.default_rng(args.semilla)
-
-    print("Generando tipos_error...", end=" ")
-    te = generar_tipos_error()
-    te.to_csv(salida / "tipos_error.csv", index=False, encoding="utf-8")
-    print(f"{len(te)} registros")
-
-    print("Generando equipos...", end=" ")
-    eq = generar_equipos()
-    eq.to_csv(salida / "equipos.csv", index=False, encoding="utf-8")
-    print(f"{len(eq)} registros")
-
-    print("Generando misiones...", end=" ", flush=True)
-    mis = generar_misiones(eq, rng)
-    mis.to_csv(salida / "misiones.csv", index=False, encoding="utf-8")
-    print(f"{len(mis):,} registros")
-
-    print("Generando eventos_incidencia...", end=" ", flush=True)
-    ev = generar_eventos(mis, te, eq, rng)
-    ev.to_csv(salida / "eventos_incidencia.csv", index=False, encoding="utf-8")
-    print(f"{len(ev):,} registros")
-
-    print(f"\nDatos escritos en: {salida.resolve()}")
+    generar_dataset(args.salida, semilla=args.semilla, verbose=True)
 
 
 if __name__ == "__main__":
