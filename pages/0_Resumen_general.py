@@ -302,7 +302,8 @@ if not eventos.empty:
         },
     )
     st.caption(
-        "Para ver el detalle individual, navega a **Módulo 2** (Rendimiento SRM)."
+        "Para ver el detalle individual, navega a **Módulo 2** (Rendimiento SRM) "
+        "o **Módulo 3** (Rendimiento STV)."
     )
 else:
     st.info("Sin eventos en el periodo seleccionado.")

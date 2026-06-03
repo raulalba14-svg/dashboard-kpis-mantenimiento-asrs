@@ -19,14 +19,15 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 # Geometría del pasillo (alturas × columnas de doble fondo por cara).
-N_PASILLOS = 8
-N_ALTURAS  = 16
-N_COLUMNAS = 48
+N_PASILLOS    = 8
+N_ALTURAS     = 16
+N_COLUMNAS    = 48
+N_STV         = 15   # vehículos del anillo único
+N_TRAMOS      = 24   # tramos del anillo
 
 # Cada código de error lleva su duración media de reparación (minutos).
 # La duración real de cada fallo se sortea lognormal alrededor de esa media
 # y se multiplica por un factor aleatorio adicional para más variabilidad.
-# Catálogo de códigos de error del transelevador.
 TIPOS_ERROR = [
     ("E01", "Fallo encoder eje X",                40),
     ("E02", "Fallo encoder eje Y",                45),
@@ -43,13 +44,20 @@ TIPOS_ERROR = [
     ("E13", "Fallo freno electromagnético",      120),
     ("E14", "Vibración excesiva mástil",         240),
     ("E15", "Desalineación guía mástil",         200),
+    ("E16", "Fallo rueda motriz STV",            130),
+    ("E17", "Desvío en transferencia de pallet",  25),
+    ("E18", "Fallo batería / carga STV",          70),
 ]
 
-# Probabilidad relativa de cada código en un transelevador (se normaliza).
+# Probabilidad relativa de cada código por tipo de equipo (se normaliza).
 _P_SRM = {
     "E01":0.13,"E02":0.11,"E03":0.10,"E04":0.08,"E05":0.04,
     "E06":0.09,"E07":0.09,"E08":0.05,"E09":0.04,"E10":0.08,
     "E11":0.06,"E12":0.05,"E13":0.04,"E14":0.02,"E15":0.02,
+}
+_P_STV = {
+    "E04":0.12,"E05":0.05,"E10":0.10,"E11":0.10,"E13":0.06,
+    "E16":0.18,"E17":0.16,"E18":0.13,"E06":0.06,"E08":0.04,
 }
 
 CODIGOS = [r[0] for r in TIPOS_ERROR]
@@ -58,7 +66,7 @@ def _norm(d: dict) -> np.ndarray:
     v = np.array([d.get(c, 0.0) for c in CODIGOS])
     return v / v.sum()
 
-PROBS_ERROR = {"SRM": _norm(_P_SRM)}
+PROBS_ERROR = {"SRM": _norm(_P_SRM), "STV": _norm(_P_STV)}
 
 # Dispersión lognormal alrededor de la duración media de cada código
 DURACION_SIGMA = 0.6
@@ -69,13 +77,14 @@ ESTACIONALIDAD = np.array([0,
     0.85, 0.75, 0.95, 1.10, 1.25, 1.30,
 ])
 
-# Misiones completadas por día y transelevador (base antes de estacionalidad).
-# Un SRM combina almacenamiento y extracción. Cadencia dimensionada para que
-# un año de los 8 equipos produzca un dataset manejable (~0,4 M misiones).
-CADENCIA_BASE = {"SRM": 140}
+# Misiones completadas por día y equipo (base antes de estacionalidad).
+# Un SRM combina almacenamiento y extracción dentro de su pasillo. Cada STV
+# del anillo encadena transferencias cortas, con cadencia algo menor por
+# vehículo para que el dataset total quede manejable.
+CADENCIA_BASE = {"SRM": 140, "STV": 95}
 
 # Tasa base de fallos por cada 1000 misiones
-TASA_FALLOS = {"SRM": 2.2}
+TASA_FALLOS = {"SRM": 2.2, "STV": 2.6}
 
 FECHA_INICIO = pd.Timestamp("2025-01-01")
 FECHA_FIN    = pd.Timestamp("2025-12-31")
@@ -92,10 +101,10 @@ def generar_tipos_error() -> pd.DataFrame:
 
 
 def generar_equipos() -> pd.DataFrame:
-    filas = [
-        (f"SRM-{i:02d}", "SRM", "pasillo", "operativo")
-        for i in range(1, N_PASILLOS + 1)
-    ]
+    filas = (
+        [(f"SRM-{i:02d}", "SRM", "pasillo", "operativo") for i in range(1, N_PASILLOS + 1)]
+        + [(f"STV-{i:02d}", "STV", "anillo", "operativo") for i in range(1, N_STV + 1)]
+    )
     return pd.DataFrame(filas, columns=["id", "tipo", "zona", "estado_operativo"])
 
 
@@ -104,6 +113,12 @@ def _pos_srm(rng: np.random.Generator, n: int) -> np.ndarray:
     a = rng.integers(1, N_ALTURAS + 1, n)
     c = rng.integers(1, N_COLUMNAS + 1, n)
     return np.array([f"P{pi:02d}-A{ai:02d}-C{ci:02d}" for pi, ai, ci in zip(p, a, c)])
+
+
+def _pos_stv(rng: np.random.Generator, n: int) -> np.ndarray:
+    """Posición de un STV en el anillo: tramo de origen → cabecera de pasillo."""
+    t = rng.integers(1, N_TRAMOS + 1, n)
+    return np.array([f"T{ti:02d}" for ti in t])
 
 
 def generar_misiones(equipos: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
@@ -115,16 +130,18 @@ def generar_misiones(equipos: pd.DataFrame, rng: np.random.Generator) -> pd.Data
     id_offset = 1
 
     for _, eq in equipos.iterrows():
-        eid = eq["id"]
-        cad = CADENCIA_BASE["SRM"]
+        eid  = eq["id"]
+        tipo = eq["tipo"]
+        cad  = CADENCIA_BASE[tipo]
 
         # Número de misiones por día vectorizado
         medias = cad * ESTACIONALIDAD[meses]
         n_por_dia = rng.poisson(medias).astype(int)
         total = int(n_por_dia.sum())
 
-        # Duración media de misión en segundos (ciclo de almacenamiento/extracción)
-        dur_s = 120
+        # Duración media de misión en segundos: el SRM hace un ciclo completo
+        # en altura; el STV encadena transferencias más cortas en el anillo.
+        dur_s = 120 if tipo == "SRM" else 45
 
         # Repetir epoch de cada día n_por_dia veces
         epochs_base = np.repeat(epoch_dias, n_por_dia)
@@ -141,9 +158,13 @@ def generar_misiones(equipos: pd.DataFrame, rng: np.random.Generator) -> pd.Data
         r = rng.random(total)
         estado = np.where(r < 0.97, "completada", "abortada")
 
-        # Posiciones (origen y destino dentro del pasillo del SRM)
-        pos_ini = _pos_srm(rng, total)
-        pos_fin = _pos_srm(rng, total)
+        # Posiciones según el tipo de equipo
+        if tipo == "SRM":
+            pos_ini = _pos_srm(rng, total)
+            pos_fin = _pos_srm(rng, total)
+        else:
+            pos_ini = _pos_stv(rng, total)
+            pos_fin = _pos_stv(rng, total)
 
         ids = np.arange(id_offset, id_offset + total)
         id_offset += total
@@ -169,6 +190,7 @@ def generar_eventos(
     rng:         np.random.Generator,
 ) -> pd.DataFrame:
     duracion_map = dict(zip(tipos_error["codigo"], tipos_error["duracion_media_min"]))
+    tipo_por_equipo = dict(zip(equipos["id"], equipos["tipo"]))
 
     comp = misiones[misiones["estado"] == "completada"].copy()
     comp["dur_s"] = (comp["ts_fin"] - comp["ts_inicio"]).dt.total_seconds().clip(lower=1).astype(int)
@@ -177,8 +199,9 @@ def generar_eventos(
     id_evento = 1
 
     for eid, grp in comp.groupby("id_equipo"):
+        tipo = tipo_por_equipo.get(eid, "SRM")
         n_mis  = len(grp)
-        n_fallos = int(rng.poisson(TASA_FALLOS["SRM"] * n_mis / 1000))
+        n_fallos = int(rng.poisson(TASA_FALLOS[tipo] * n_mis / 1000))
         if n_fallos == 0:
             continue
 
@@ -192,8 +215,8 @@ def generar_eventos(
         ])
         ts_fallos = sel["ts_inicio"].values + offsets.astype("timedelta64[s]")
 
-        # Códigos de error
-        codigos = rng.choice(CODIGOS, size=n_fallos, p=PROBS_ERROR["SRM"])
+        # Códigos de error según el tipo de equipo
+        codigos = rng.choice(CODIGOS, size=n_fallos, p=PROBS_ERROR[tipo])
 
         # Duración del fallo: lognormal alrededor de la media del código,
         # con un multiplicador uniforme extra (0.7-1.4) para más variabilidad

@@ -118,17 +118,28 @@ ev_srm = ev_enriq[ev_enriq["tipo"] == "SRM"].copy()
 ev_srm["pasillo_num"] = ev_srm["id_equipo"].str.extract(r"SRM-(\d+)")[0].astype(int)
 fallos_pasillos = ev_srm.groupby("pasillo_num").size().to_dict()
 
+# Mapeo STV → tramo del anillo (vía posición en el momento del fallo, Txx)
+fallos_tramos = {}
+ev_stv = ev_enriq[ev_enriq["tipo"] == "STV"].copy()
+if not ev_stv.empty:
+    ev_stv_pos = posicion_en_fallo(ev_stv, misiones).dropna(subset=["posicion_inicial"])
+    if not ev_stv_pos.empty:
+        tramo_num = ev_stv_pos["posicion_inicial"].str.extract(r"T(\d+)")[0].dropna().astype(int)
+        fallos_tramos = tramo_num.groupby(tramo_num).size().to_dict()
+
 fig_plano = plano_almacen(
     fallos_pasillos=fallos_pasillos,
+    fallos_tramos=fallos_tramos,
     titulo="",
 )
 st.plotly_chart(fig_plano, use_container_width=True,
                 config={"displayModeBar": False})
 
 st.caption(
-    "**Lectura:** cada pasillo representa un transelevador (SRM). "
-    "Cuanto más oscuro el color, mayor concentración de fallos en el periodo. "
-    "Los pasillos en rojo son los que deben recibir atención prioritaria."
+    "**Lectura:** en el centro, cada pasillo representa un transelevador (SRM); "
+    "alrededor, el anillo único de STV dividido en tramos. Cuanto más oscuro el "
+    "color, mayor concentración de fallos en el periodo — las zonas en rojo son "
+    "las que deben recibir atención prioritaria."
 )
 
 st.divider()

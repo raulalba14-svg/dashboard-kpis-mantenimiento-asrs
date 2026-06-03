@@ -461,25 +461,31 @@ def histograma_distribucion(
 
 def plano_almacen(
     fallos_pasillos: dict[int, int],
+    fallos_tramos: dict[int, int] | None = None,
     n_pasillos: int = 8,
+    n_tramos: int = 24,
     titulo: str = "Plano de la instalación — concentración de fallos",
 ) -> go.Figure:
     """
     Plano esquemático del almacén AS/RS.
 
-    8 pasillos en paralelo, cada uno servido por su transelevador (SRM-XX).
-    Cada pasillo se dibuja como un rectángulo vertical, con un transportador
-    de entrada arriba y otro de salida abajo (contexto, sin KPIs). El color
-    del pasillo codifica la intensidad de fallos del SRM correspondiente.
+    8 pasillos en paralelo, cada uno servido por su transelevador (SRM-XX),
+    rodeados por un anillo único de vehículos de transferencia (STV) que
+    alimenta y evacúa las cabeceras de los pasillos. El color de cada pasillo
+    codifica la intensidad de fallos del SRM; el de cada tramo del anillo, la
+    de los STV que pasan por él.
 
     Parámetros:
         fallos_pasillos: {pasillo (1..n_pasillos): n_fallos}
+        fallos_tramos:   {tramo   (1..n_tramos):   n_fallos}  (anillo STV)
     """
+    fallos_tramos = fallos_tramos or {}
     fig = go.Figure()
 
-    vmax = max(fallos_pasillos.values()) if fallos_pasillos else 1
+    vmax_p = max(fallos_pasillos.values()) if fallos_pasillos else 1
+    vmax_t = max(fallos_tramos.values()) if fallos_tramos else 1
 
-    def _color(v: int) -> str:
+    def _color(v: int, vmax: int) -> str:
         if vmax == 0:
             return "#EAF2F9"
         ratio = v / vmax
@@ -493,32 +499,29 @@ def plano_almacen(
             return CRITICO
 
     paso = 1.4          # separación horizontal entre pasillos
-    x0_base = 0.5
-    y_pas_bot, y_pas_top = 3.0, 10.0
-    y_ent = y_pas_top + 0.3   # transportador de entrada (banda fina arriba)
-    y_sal = y_pas_bot - 1.2   # transportador de salida (banda fina abajo)
+    x0_base = 1.0
+    y_pas_bot, y_pas_top = 3.2, 9.6
 
+    ancho_pasillos = n_pasillos * paso
+    x_ring_left = x0_base - 0.7
+    x_ring_right = x0_base + ancho_pasillos - 0.1
+    y_ring_top = y_pas_top + 0.9
+    y_ring_bot = y_pas_bot - 0.9
+
+    # ----- Pasillos SRM (rejilla central) -----
     for p in range(1, n_pasillos + 1):
         v = fallos_pasillos.get(p, 0)
         x0 = x0_base + (p - 1) * paso
         x1 = x0 + 1.0
         xc = (x0 + x1) / 2
 
-        # Transportador de entrada (gris claro, contexto)
-        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_ent, y1=y_ent + 0.5,
-                      line=dict(color="white", width=1), fillcolor=GRIS_300)
-        # Pasillo (color por nº de fallos del SRM)
         fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_pas_bot, y1=y_pas_top,
-                      line=dict(color="white", width=1.5), fillcolor=_color(v))
-        # Transportador de salida (gris claro, contexto)
-        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_sal, y1=y_sal + 0.5,
-                      line=dict(color="white", width=1), fillcolor=GRIS_300)
-
+                      line=dict(color="white", width=1.5), fillcolor=_color(v, vmax_p))
         fig.add_annotation(
             x=xc, y=(y_pas_top + y_pas_bot) / 2,
             text=f"SRM-{p:02d}<br><b>{v}</b>",
             showarrow=False,
-            font=dict(size=11, color="white" if v >= vmax * 0.5 else GRIS_900),
+            font=dict(size=11, color="white" if v >= vmax_p * 0.5 else GRIS_900),
         )
         fig.add_trace(go.Scatter(
             x=[xc], y=[(y_pas_top + y_pas_bot) / 2],
@@ -527,21 +530,52 @@ def plano_almacen(
             hovertemplate=f"<b>Pasillo P{p:02d} · SRM-{p:02d}</b><br>{v:,} fallos<extra></extra>",
         ))
 
-    ancho_total = x0_base + n_pasillos * paso
-    xc_total = ancho_total / 2
+    # ----- Anillo único de STV (recorrido rectangular alrededor) -----
+    # Reparte los n_tramos a lo largo del perímetro: banda superior + inferior.
+    n_arriba = (n_tramos + 1) // 2
+    n_abajo = n_tramos - n_arriba
+    span = x_ring_right - x_ring_left
 
-    fig.add_annotation(x=xc_total, y=y_ent + 0.9,
-                       text="<b>Transportadores de entrada</b>",
-                       showarrow=False, font=dict(size=11, color=GRIS_500))
-    fig.add_annotation(x=xc_total, y=y_pas_top + 1.4,
+    def _tramo_rect(tnum, x0, x1, y0, y1):
+        v = fallos_tramos.get(tnum, 0)
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                      line=dict(color="white", width=1),
+                      fillcolor=_color(v, vmax_t))
+        fig.add_trace(go.Scatter(
+            x=[(x0 + x1) / 2], y=[(y0 + y1) / 2],
+            mode="markers", marker=dict(opacity=0, size=18),
+            showlegend=False,
+            hovertemplate=f"<b>Anillo · T{tnum:02d}</b><br>{v:,} fallos<extra></extra>",
+        ))
+
+    w_arr = span / n_arriba
+    for i in range(n_arriba):
+        _tramo_rect(i + 1, x_ring_left + i * w_arr, x_ring_left + (i + 1) * w_arr,
+                    y_ring_top, y_ring_top + 0.5)
+    w_ab = span / max(n_abajo, 1)
+    for j in range(n_abajo):
+        _tramo_rect(n_arriba + j + 1, x_ring_left + j * w_ab, x_ring_left + (j + 1) * w_ab,
+                    y_ring_bot - 0.5, y_ring_bot)
+    # Laterales del anillo (visual, sin tramo numerado)
+    for xx in (x_ring_left, x_ring_right):
+        fig.add_shape(type="rect", x0=xx - 0.18, x1=xx + 0.18,
+                      y0=y_ring_bot - 0.5, y1=y_ring_top + 0.5,
+                      line=dict(color="white", width=1), fillcolor="#A8C8E0", opacity=0.6)
+
+    xc_total = (x_ring_left + x_ring_right) / 2
+
+    fig.add_annotation(x=xc_total, y=y_ring_top + 0.95,
+                       text=f"<b>Anillo de STV · {n_tramos} tramos</b>",
+                       showarrow=False, font=dict(size=11, color=GRIS_700))
+    fig.add_annotation(x=xc_total, y=(y_pas_top + y_pas_bot) / 2 + 3.9,
                        text=f"<b>{n_pasillos} pasillos · 1 transelevador por pasillo · 16 alturas</b>",
                        showarrow=False, font=dict(size=12, color=GRIS_700))
-    fig.add_annotation(x=xc_total, y=y_sal - 0.4,
-                       text="<b>Transportadores de salida</b>",
+    fig.add_annotation(x=xc_total, y=y_ring_bot - 0.9,
+                       text="<b>Anillo único: entradas y salidas a los pasillos</b>",
                        showarrow=False, font=dict(size=11, color=GRIS_500))
 
     # Leyenda manual (colorbar discreta)
-    leyenda_y = y_sal - 1.4
+    leyenda_y = y_ring_bot - 1.9
     leyenda_items = [("Bajo", "#A8C8E0"),
                      ("Medio", PRIMARIO_CLARO),
                      ("Alto", ADVERTENCIA),
@@ -563,12 +597,12 @@ def plano_almacen(
 
     fig.update_layout(
         title=titulo,
-        xaxis=dict(range=[-0.5, ancho_total + 0.5], showgrid=False, zeroline=False,
-                   showticklabels=False, fixedrange=True),
-        yaxis=dict(range=[leyenda_y - 0.6, y_pas_top + 2.0], showgrid=False,
+        xaxis=dict(range=[x_ring_left - 0.6, x_ring_right + 0.6], showgrid=False,
+                   zeroline=False, showticklabels=False, fixedrange=True),
+        yaxis=dict(range=[leyenda_y - 0.6, y_ring_top + 1.6], showgrid=False,
                    zeroline=False, showticklabels=False, fixedrange=True,
                    scaleanchor="x", scaleratio=0.7),
-        height=480,
+        height=520,
         margin=dict(l=10, r=10, t=60, b=10),
         showlegend=False,
         plot_bgcolor="#F9FAFB",

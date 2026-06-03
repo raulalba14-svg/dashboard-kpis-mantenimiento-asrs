@@ -36,9 +36,13 @@ def dataset():
 
 def test_equipos_conteo(dataset):
     eq = dataset["equipos"]
-    assert len(eq) == 8
+    assert len(eq) == 23
     assert (eq["tipo"] == "SRM").sum() == 8
-    assert (eq["zona"] == "pasillo").all()
+    assert (eq["tipo"] == "STV").sum() == 15
+    srm = eq[eq["tipo"] == "SRM"]
+    stv = eq[eq["tipo"] == "STV"]
+    assert (srm["zona"] == "pasillo").all()
+    assert (stv["zona"] == "anillo").all()
 
 
 def test_fks_misiones(dataset):

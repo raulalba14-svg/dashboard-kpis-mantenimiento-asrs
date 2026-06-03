@@ -8,6 +8,7 @@ from src.theme import PRIMARIO
 
 _ZONAS_LABELS = {
     "pasillo": "Pasillo (SRM)",
+    "anillo":  "Anillo (STV)",
 }
 
 

@@ -1,4 +1,4 @@
-"""Módulo 6 — Comparativa de periodos."""
+"""Módulo 4 — Comparativa de periodos."""
 
 import streamlit as st
 import pandas as pd
@@ -30,7 +30,7 @@ init_session_state()
 render_sidebar_filtros()
 
 hero(
-    kicker="Módulo 6",
+    kicker="Módulo 4",
     titulo="Comparativa de periodos",
     subtitulo=(
         "Compara dos rangos de fechas y mide la variación de los KPIs principales "

@@ -13,3 +13,6 @@ skills-lock.json
 
 # Artefacto de trabajo del rediseño — no forma parte del producto
 PLAN_rediseño.md
+
+# Logs de arranque local de Streamlit
+streamlit_*.log

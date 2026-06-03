@@ -257,15 +257,15 @@ _HERO = """
         <div class="asrs-hero__stats">
             <div class="asrs-hero__stat">
                 <div class="asrs-hero__stat-num">8</div>
-                <div class="asrs-hero__stat-label">Pasillos</div>
-            </div>
-            <div class="asrs-hero__stat">
-                <div class="asrs-hero__stat-num">8</div>
                 <div class="asrs-hero__stat-label">SRM</div>
             </div>
             <div class="asrs-hero__stat">
-                <div class="asrs-hero__stat-num">16</div>
-                <div class="asrs-hero__stat-label">Alturas</div>
+                <div class="asrs-hero__stat-num">15</div>
+                <div class="asrs-hero__stat-label">STV</div>
+            </div>
+            <div class="asrs-hero__stat">
+                <div class="asrs-hero__stat-num">23</div>
+                <div class="asrs-hero__stat-label">Equipos</div>
             </div>
         </div>
     </div>

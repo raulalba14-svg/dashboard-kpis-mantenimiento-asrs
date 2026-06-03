@@ -1,4 +1,4 @@
-"""Módulo 6 — Acerca del proyecto."""
+"""Módulo 5 — Acerca del proyecto."""
 
 import streamlit as st
 
@@ -114,8 +114,8 @@ _tablas = [
     ("eventos_incidencia", "Registro de cada avería detectada",
      "id_evento · id_equipo · codigo_error · ts_inicio_fallo · ts_recuperacion · estado",
      PRIMARIO),
-    ("equipos", "Inventario de transelevadores (un SRM por pasillo)",
-     "id · tipo (SRM) · zona · estado_operativo",
+    ("equipos", "Inventario de transelevadores (SRM) y vehículos del anillo (STV)",
+     "id · tipo (SRM/STV) · zona · estado_operativo",
      PRIMARIO_CLARO),
     ("misiones", "Cada movimiento ejecutado por un equipo",
      "id_mision · id_equipo · posicion_inicial · posicion_final · ts_inicio · ts_fin · estado",
@@ -168,7 +168,7 @@ with col_stack:
           contiene funciones puras de pandas sin dependencias de Streamlit,
           validadas con tests unitarios.
         - **Generador de datos sintéticos**: `scripts/generar_datos.py`
-          produce ~0,41 M de misiones y ~940 eventos con estacionalidad,
+          produce ~0,94 M de misiones y ~2.170 eventos con estacionalidad,
           correlación ciclos↔fallos y coherencia temporal verificada.
         - **Sistema de diseño propio**: paleta corporativa, tipografía Inter,
           template Plotly compartido y componentes reutilizables
@@ -187,19 +187,19 @@ with col_metrics:
                     padding:16px 18px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">Misiones</span>
-                <span style="color:{GRIS_900};font-weight:700;">413.669</span>
+                <span style="color:{GRIS_900};font-weight:700;">939.994</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">Eventos de incidencia</span>
-                <span style="color:{GRIS_900};font-weight:700;">941</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                <span style="color:{GRIS_700};">Pasillos</span>
-                <span style="color:{GRIS_900};font-weight:700;">8</span>
+                <span style="color:{GRIS_900};font-weight:700;">2.167</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">SRM (transelevadores)</span>
                 <span style="color:{GRIS_900};font-weight:700;">8</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                <span style="color:{GRIS_700};">STV (anillo único)</span>
+                <span style="color:{GRIS_900};font-weight:700;">15</span>
             </div>
             <div style="display:flex;justify-content:space-between;">
                 <span style="color:{GRIS_700};">Alturas × columnas por pasillo</span>

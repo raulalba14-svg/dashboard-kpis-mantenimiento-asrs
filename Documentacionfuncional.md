@@ -29,11 +29,11 @@ Por confidencialidad, la herramienta opera sobre **datos simulados** que reprodu
 |---|---|---|
 | Pasillos (doble fondo) | 8 | 16 alturas × 48 columnas por cara, ~98.300 ubicaciones en total |
 | Transelevadores SRM | 8 (uno por pasillo) | Bimástil, ~160 m/min traslación · ~35 m/min elevación, telemetría dual (encoder + láser) en ejes X e Y |
-| Transportadores de pasillo | 16 | Uno de entrada y uno de salida por pasillo (cinta/rodillos); contexto operativo, sin KPIs propios |
+| Vehículos de transferencia STV | 15 | Circulan por un anillo único de 24 tramos que alimenta y evacúa las cabeceras de los pasillos |
 | Control | — | PLCs Beckhoff (TwinCAT) sobre EtherCAT |
 | Régimen de operación | 24 h | 3 turnos, operativa *lights-out* |
 
-> No hay anillo de transporte ni vehículos de transferencia: cada transelevador coge los pallets de su transportador de entrada para ubicarlos y los deposita en el de salida al extraerlos. Recepción y preparación quedan fuera del alcance de los KPIs.
+> Un único anillo de STV gestiona tanto las entradas como las salidas: deja los pallets en la cabecera del pasillo para que el SRM los ubique, y recoge los que el SRM extrae. Recepción y preparación quedan fuera del alcance de los KPIs.
 
 ---
 
@@ -60,12 +60,12 @@ Inventario de equipos.
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | str | Identificador único (p. ej. `SRM-03`, `SRM-07`) |
-| `tipo` | str | `SRM` |
-| `zona` | str | `pasillo` |
+| `id` | str | Identificador único (p. ej. `SRM-03`, `STV-12`) |
+| `tipo` | str | `SRM` / `STV` |
+| `zona` | str | `pasillo` (SRM) / `anillo` (STV) |
 | `estado_operativo` | str | `operativo` / `fuera_servicio` / `mantenimiento` |
 
-> Nota de diseño: la instalación tiene un único tipo de equipo con KPIs (el transelevador). Los campos `tipo` y `zona` se conservan en el esquema para que la migración a una instalación con más tipos de equipo no requiera cambios estructurales.
+> Nota de diseño: hay dos tipos de equipo con KPIs propios — los transelevadores (`pasillo`) y los STV del anillo único (`anillo`). El campo `zona` permite separarlos sin ambigüedad; los STV no se subdividen en entrada/salida porque un mismo anillo cubre ambos flujos.
 
 ### 2.3. Tabla `misiones`
 
@@ -159,14 +159,15 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
 ```
 ┌─ Barra lateral (filtros globales) ────────────┐
 │  • Rango de fechas                            │
-│  • Tipo de equipo (SRM)                       │
-│  • Zona (pasillo)                             │
+│  • Tipo de equipo (SRM / STV)                 │
+│  • Zona (pasillo / anillo)                    │
 │  • Selector de módulo                         │
 └───────────────────────────────────────────────┘
 
   0. Resumen general (home / dashboard)
   1. Fallos por pasillo y equipo
   2. Rendimiento de transelevadores SRM
+  3. Rendimiento de los STV del anillo
   6. Comparativa de periodos
 ```
 
@@ -175,8 +176,8 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
 Presentes en todos los módulos, en la barra lateral, y aplicados de forma transversal a los datos antes de cualquier cálculo:
 
 - **Rango de fechas:** selector de fecha inicio/fin. Acota el periodo de todos los KPIs.
-- **Tipo de equipo:** `SRM` (único tipo con KPIs).
-- **Zona:** `pasillo` (única zona).
+- **Tipo de equipo:** `SRM` / `STV`.
+- **Zona:** `pasillo` (SRM) / `anillo` (STV).
 
 ### 4.2. Vista de evolución anual
 
@@ -234,7 +235,23 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 8. Módulo 6 — Comparativa de periodos ✅
+## 8. Módulo 3 — Rendimiento de los STV del anillo ✅
+
+**Propósito:** evaluar individualmente los 15 STV del anillo único, que alimentan y evacúan los pasillos. Un STV degradado puede frenar el flujo del conjunto.
+
+**Qué visualiza:**
+- Tabla comparativa de los 15 STV: MTTR, MTBF, disponibilidad y ciclos por equipo.
+- **Gráfica de disponibilidad por STV** (barras), con línea de referencia del objetivo/medio.
+- Detalle individual al seleccionar un STV: sus KPIs, su histórico de fallos y su evolución anual de disponibilidad.
+- Relación ciclos vs. fallos.
+
+**Cálculos:** los mismos KPIs (sección 3) calculados por equipo para `tipo = STV`.
+
+**Filtros:** rango de fechas; selector de STV individual.
+
+---
+
+## 9. Módulo 4 — Comparativa de periodos ✅
 
 **Propósito:** comparar dos rangos de fechas y medir la variación de los KPIs principales para detectar mejoras, regresiones o estacionalidad.
 
@@ -248,9 +265,9 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 9. Notas de implementación para el desarrollo
+## 10. Notas de implementación para el desarrollo
 
-- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — ~0,41 M misiones · ~940 eventos · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con tests.
+- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — ~0,94 M misiones · ~2.170 eventos · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con tests.
 - **Capa de cálculo separada de la capa de visualización:** ✅ `src/kpis.py` — funciones puras de pandas, tests unitarios verdes, cero `import streamlit`.
 - **Cacheo:** `@st.cache_data` aplicado mediante `st.cache_data(cargar_tablas)` en cada página, manteniendo `src/data_loader.py` libre de dependencias de Streamlit.
 - **Internacionalización de unidades:** parámetro global `UNIDAD_TIEMPO` en `src/config.py` para mostrar tiempos en minutos u horas.

@@ -169,3 +169,41 @@ def rendimiento_srm(
         + (f"El SRM más crítico es <b>{peor}</b>." if peor else "")
         + correlacion_msg
     )
+
+
+# ---------------------------------------------------------------------------
+# Módulo 3 — Rendimiento STV (anillo único)
+# ---------------------------------------------------------------------------
+
+def rendimiento_stv(
+    eventos: pd.DataFrame,
+    misiones: pd.DataFrame,
+    equipos: pd.DataFrame,
+    rango: tuple[str, str],
+) -> str:
+    stv_ids = set(equipos.loc[equipos["tipo"] == "STV", "id"])
+    if not stv_ids:
+        return _vacio("No hay STV en los filtros activos.")
+
+    ev_stv = eventos[eventos["id_equipo"].isin(stv_ids)]
+    if ev_stv.empty:
+        return f"Los <b>{len(stv_ids)} STV</b> del anillo no han registrado incidencias en el periodo filtrado."
+
+    disp = disponibilidad_por_equipo(ev_stv, rango)
+    disp_media = float(disp.mean()) if len(disp) else 100.0
+    peor = disp.idxmin() if len(disp) else None
+    peor_valor = float(disp.min()) if len(disp) else 100.0
+
+    n_fallos = int(len(ev_stv))
+    juicio = (
+        "El anillo opera dentro de objetivo."
+        if disp_media >= _OBJETIVO_DISP
+        else "El anillo opera por debajo de objetivo; un STV degradado puede frenar el flujo del resto."
+    )
+
+    return (
+        f"Disponibilidad media del anillo de STV: <b>{disp_media:.2f}%</b> "
+        f"sobre <b>{len(stv_ids)}</b> vehículos y <b>{n_fallos:,}</b> fallos. "
+        + (f"El STV más crítico es <b>{peor}</b> (<b>{peor_valor:.2f}%</b>). " if peor else "")
+        + juicio
+    )

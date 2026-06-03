@@ -15,18 +15,24 @@ ANO_DATASET = 2025
 FECHA_INICIO = f"{ANO_DATASET}-01-01"
 FECHA_FIN = f"{ANO_DATASET}-12-31"
 
-# Equipos — instalación de 8 pasillos en paralelo, 1 transelevador por pasillo.
+# Equipos — 8 pasillos en paralelo (un transelevador por pasillo) y un anillo
+# único de vehículos de transferencia (STV) que alimenta y evacúa los pasillos.
 N_SRM = 8
+N_STV = 15
 
 IDS_SRM = [f"SRM-{i:02d}" for i in range(1, N_SRM + 1)]
-IDS_TODOS = IDS_SRM
+IDS_STV = [f"STV-{i:02d}" for i in range(1, N_STV + 1)]
+IDS_TODOS = IDS_SRM + IDS_STV
 
-TIPOS_EQUIPO = ["SRM"]
-ZONAS = ["pasillo"]
+TIPOS_EQUIPO = ["SRM", "STV"]
+ZONAS = ["pasillo", "anillo"]
 
 # Geometría del pasillo (para el alzado y la generación de posiciones)
 N_ALTURAS = 16
 N_COLUMNAS = 48
+
+# Tramos del anillo único por los que circulan los STV
+N_TRAMOS_ANILLO = 24
 
 # Unidad de tiempo para KPIs ("minutos" u "horas")
 UNIDAD_TIEMPO = "minutos"
