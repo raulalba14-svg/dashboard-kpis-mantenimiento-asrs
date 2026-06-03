@@ -74,8 +74,8 @@ with col_q:
         por equipo, zona y código de error.
 
         Está pensada para que un equipo de mantenimiento decida, en menos de
-        un minuto, qué transelevador necesita atención prioritaria, dónde se
-        concentran los rechazos del anillo y cómo evoluciona la disponibilidad
+        un minuto, qué transelevador necesita atención prioritaria, en qué
+        pasillo se concentran los fallos y cómo evoluciona la disponibilidad
         mes a mes.
         """
     )
@@ -114,8 +114,8 @@ _tablas = [
     ("eventos_incidencia", "Registro de cada avería detectada",
      "id_evento · id_equipo · codigo_error · ts_inicio_fallo · ts_recuperacion · estado",
      PRIMARIO),
-    ("equipos", "Inventario de transelevadores y vehículos de transferencia",
-     "id · tipo (SRM/STV) · zona · estado_operativo · criticidad",
+    ("equipos", "Inventario de transelevadores (un SRM por pasillo)",
+     "id · tipo (SRM) · zona · estado_operativo",
      PRIMARIO_CLARO),
     ("misiones", "Cada movimiento ejecutado por un equipo",
      "id_mision · id_equipo · posicion_inicial · posicion_final · ts_inicio · ts_fin · estado",
@@ -168,7 +168,7 @@ with col_stack:
           contiene funciones puras de pandas sin dependencias de Streamlit,
           validadas con tests unitarios.
         - **Generador de datos sintéticos**: `scripts/generar_datos.py`
-          produce 4,84 M de misiones y 9.700 eventos con estacionalidad,
+          produce ~0,41 M de misiones y ~940 eventos con estacionalidad,
           correlación ciclos↔fallos y coherencia temporal verificada.
         - **Sistema de diseño propio**: paleta corporativa, tipografía Inter,
           template Plotly compartido y componentes reutilizables
@@ -187,27 +187,23 @@ with col_metrics:
                     padding:16px 18px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">Misiones</span>
-                <span style="color:{GRIS_900};font-weight:700;">4,84 M</span>
+                <span style="color:{GRIS_900};font-weight:700;">413.669</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">Eventos de incidencia</span>
-                <span style="color:{GRIS_900};font-weight:700;">9.700</span>
+                <span style="color:{GRIS_900};font-weight:700;">941</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                <span style="color:{GRIS_700};">Equipos en inventario</span>
-                <span style="color:{GRIS_900};font-weight:700;">50</span>
+                <span style="color:{GRIS_700};">Pasillos</span>
+                <span style="color:{GRIS_900};font-weight:700;">8</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">SRM (transelevadores)</span>
-                <span style="color:{GRIS_900};font-weight:700;">20</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                <span style="color:{GRIS_700};">STV entrada (cuna simple)</span>
-                <span style="color:{GRIS_900};font-weight:700;">20</span>
+                <span style="color:{GRIS_900};font-weight:700;">8</span>
             </div>
             <div style="display:flex;justify-content:space-between;">
-                <span style="color:{GRIS_700};">STV salida (doble cuna)</span>
-                <span style="color:{GRIS_900};font-weight:700;">10</span>
+                <span style="color:{GRIS_700};">Alturas × columnas por pasillo</span>
+                <span style="color:{GRIS_900};font-weight:700;">16 × 48</span>
             </div>
         </div>
         """,

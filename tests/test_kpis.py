@@ -13,7 +13,6 @@ from src.kpis import (
     mttr_por_equipo,
     posicion_en_fallo,
     serie_mensual,
-    tasa_rechazo,
     tiempo_ciclo,
 )
 
@@ -177,17 +176,18 @@ class TestCiclos:
         c = ciclos_por_equipo(mis)
         assert c["EQ-A"] == 2
 
-    def test_doble_cuna_stv_salida(self):
+    def test_equipos_no_altera_conteo(self):
+        """Pasar `equipos` no altera el conteo: cada misión cuenta como un ciclo."""
         mis = pd.DataFrame([
-            _mision(1, "STV-S-01", "2025-01-01 08:00", "2025-01-01 08:01"),
-            _mision(2, "STV-S-01", "2025-01-01 09:00", "2025-01-01 09:01"),
+            _mision(1, "SRM-01", "2025-01-01 08:00", "2025-01-01 08:02"),
+            _mision(2, "SRM-01", "2025-01-01 09:00", "2025-01-01 09:02"),
         ])
         eq = pd.DataFrame([
-            {"id": "STV-S-01", "tipo": "STV", "zona": "anillo_salida",
+            {"id": "SRM-01", "tipo": "SRM", "zona": "pasillo",
              "estado_operativo": "operativo"},
         ])
         c = ciclos_por_equipo(mis, equipos=eq)
-        assert c["STV-S-01"] == 4  # 2 misiones × 2 pallets
+        assert c["SRM-01"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -237,36 +237,6 @@ class TestPosicionEnFallo:
         ])
         resultado = posicion_en_fallo(ev, mis)
         assert pd.isna(resultado["posicion_inicial"].iloc[0])
-
-
-# ---------------------------------------------------------------------------
-# Tasa de rechazo
-# ---------------------------------------------------------------------------
-
-class TestTasaRechazo:
-    def test_global(self):
-        mis = pd.DataFrame([
-            {"id_mision": i, "id_equipo": "EQ-A",
-             "estado": "completada" if i < 9 else "rechazada"}
-            for i in range(1, 11)
-        ])
-        assert abs(tasa_rechazo(mis) - 0.2) < 0.001
-
-    def test_agrupado(self):
-        mis = pd.DataFrame([
-            {"id_mision": 1, "id_equipo": "EQ-A", "estado": "completada"},
-            {"id_mision": 2, "id_equipo": "EQ-A", "estado": "rechazada"},
-            {"id_mision": 3, "id_equipo": "EQ-B", "estado": "completada"},
-            {"id_mision": 4, "id_equipo": "EQ-B", "estado": "completada"},
-        ])
-        tr = tasa_rechazo(mis, agrupar_por="id_equipo")
-        assert abs(tr["EQ-A"] - 0.5) < 0.001
-        assert abs(tr["EQ-B"] - 0.0) < 0.001
-
-    def test_misiones_vacias_no_explota(self):
-        """Sin misiones la tasa global debe ser 0.0 (no ZeroDivisionError)."""
-        mis = pd.DataFrame(columns=["id_mision", "id_equipo", "estado"])
-        assert tasa_rechazo(mis) == 0.0
 
 
 # ---------------------------------------------------------------------------

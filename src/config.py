@@ -15,18 +15,18 @@ ANO_DATASET = 2025
 FECHA_INICIO = f"{ANO_DATASET}-01-01"
 FECHA_FIN = f"{ANO_DATASET}-12-31"
 
-# Equipos
-N_SRM = 20
-N_STV_ENTRADA = 20
-N_STV_SALIDA = 10
+# Equipos — instalación de 8 pasillos en paralelo, 1 transelevador por pasillo.
+N_SRM = 8
 
 IDS_SRM = [f"SRM-{i:02d}" for i in range(1, N_SRM + 1)]
-IDS_STV_ENTRADA = [f"STV-E-{i:02d}" for i in range(1, N_STV_ENTRADA + 1)]
-IDS_STV_SALIDA = [f"STV-S-{i:02d}" for i in range(1, N_STV_SALIDA + 1)]
-IDS_TODOS = IDS_SRM + IDS_STV_ENTRADA + IDS_STV_SALIDA
+IDS_TODOS = IDS_SRM
 
-TIPOS_EQUIPO = ["SRM", "STV"]
-ZONAS = ["pasillo", "anillo_entrada", "anillo_salida"]
+TIPOS_EQUIPO = ["SRM"]
+ZONAS = ["pasillo"]
+
+# Geometría del pasillo (para el alzado y la generación de posiciones)
+N_ALTURAS = 16
+N_COLUMNAS = 48
 
 # Unidad de tiempo para KPIs ("minutos" u "horas")
 UNIDAD_TIEMPO = "minutos"
@@ -49,6 +49,11 @@ def init_session_state():
         st.session_state["zonas"] = ZONAS[:]
 
 
+# Códigos de error que se contabilizan como causa de mantenimiento (vs. desgaste
+# operativo esperable). E03: desviación de posición por descalibración del láser.
+CODIGOS_MANTENIMIENTO = {"E03"}
+
+
 def rango_valido(rango) -> bool:
     """
     True si `rango` es un par (date_ini, date_fin) usable.
@@ -62,12 +67,6 @@ def rango_valido(rango) -> bool:
         and rango[0] is not None
         and rango[1] is not None
     )
-
-
-# Códigos de error que se contabilizan como causa de mantenimiento
-# (vs. operativa) en el módulo 4 — Obstrucciones y rechazos.
-# E12: rechazo del inspector de pallets por sensor descalibrado.
-CODIGOS_MANTENIMIENTO = {"E12"}
 
 
 # Paletas de colores reexportadas desde src/theme.py para evitar duplicación.

@@ -27,12 +27,13 @@ Por confidencialidad, la herramienta opera sobre **datos simulados** que reprodu
 
 | Elemento | Cantidad | Características |
 |---|---|---|
-| Pasillos (single-depth) | 20 | 12 alturas, ~26.880 ubicaciones por cara de pasillo |
-| Transelevadores SRM | 20 (uno por pasillo) | Monomástil, ~50 km/h, telemetría dual (encoder + láser) en ejes X e Y |
-| STV anillo de entrada | 20 | Cuna simple |
-| STV anillo de salida | 10 | Doble cuna (dos pallets simultáneos para capacidad de ciclo) |
-| Control | — | PLCs Siemens S7-300/400 sobre Profibus |
+| Pasillos (doble fondo) | 8 | 16 alturas × 48 columnas por cara, ~98.300 ubicaciones en total |
+| Transelevadores SRM | 8 (uno por pasillo) | Bimástil, ~160 m/min traslación · ~35 m/min elevación, telemetría dual (encoder + láser) en ejes X e Y |
+| Transportadores de pasillo | 16 | Uno de entrada y uno de salida por pasillo (cinta/rodillos); contexto operativo, sin KPIs propios |
+| Control | — | PLCs Beckhoff (TwinCAT) sobre EtherCAT |
 | Régimen de operación | 24 h | 3 turnos, operativa *lights-out* |
+
+> No hay anillo de transporte ni vehículos de transferencia: cada transelevador coge los pallets de su transportador de entrada para ubicarlos y los deposita en el de salida al extraerlos. Recepción y preparación quedan fuera del alcance de los KPIs.
 
 ---
 
@@ -59,12 +60,12 @@ Inventario de equipos.
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | str | Identificador único (p. ej. `SRM-07`, `STV-E-12`, `STV-S-03`) |
-| `tipo` | str | `SRM` / `STV` |
-| `zona` | str | `anillo_entrada` / `anillo_salida` / `pasillo` |
+| `id` | str | Identificador único (p. ej. `SRM-03`, `SRM-07`) |
+| `tipo` | str | `SRM` |
+| `zona` | str | `pasillo` |
 | `estado_operativo` | str | `operativo` / `fuera_servicio` / `mantenimiento` |
 
-> Nota de diseño: para los STV conviene un subcampo o convención de `id` que distinga anillo de entrada (cuna simple) y anillo de salida (doble cuna), porque el módulo 3 los analiza por separado.
+> Nota de diseño: la instalación tiene un único tipo de equipo con KPIs (el transelevador). Los campos `tipo` y `zona` se conservan en el esquema para que la migración a una instalación con más tipos de equipo no requiera cambios estructurales.
 
 ### 2.3. Tabla `misiones`
 
@@ -78,7 +79,7 @@ Registro de cada movimiento ejecutado por un equipo.
 | `posicion_final` | str | Coordenada/ubicación de destino |
 | `ts_inicio` | datetime | Inicio de la misión |
 | `ts_fin` | datetime | Fin de la misión |
-| `estado` | str | `completada` / `abortada` / `rechazada` |
+| `estado` | str | `completada` / `abortada` |
 
 ### 2.4. Tabla `tipos_error`
 
@@ -90,10 +91,8 @@ Catálogo de códigos de error.
 | `descripcion` | str | Descripción legible |
 | `duracion_media_min` | int | Duración media de reparación (minutos), usada por el simulador como media de la lognormal que sortea la duración real de cada fallo |
 
-> **Nota — atributos que dependen del equipo, no del código:**
-> La *criticidad operativa* (impacto en el flujo del almacén) es un atributo del equipo, no del fallo: cualquier avería en una STV detiene un anillo entero (crítica), mientras que una avería en un SRM solo afecta a su pasillo (media). Se guarda en la columna `criticidad` de la tabla `equipos`.
->
-> Anteriormente existían columnas `categoria` y `severidad` en `tipos_error` que se han eliminado: la primera porque no existe en los sistemas reales (el WCS solo da el código de error), y la segunda porque mezclaba "duración del fallo" con "impacto en el flujo", dos conceptos que ahora viven separados (`duracion_media_min` por código de error, `criticidad` por equipo).
+> **Nota — el catálogo solo guarda lo que produce el WCS:**
+> El catálogo `tipos_error` mantiene únicamente `codigo`, `descripcion` y `duracion_media_min`. Anteriormente se barajaron columnas `categoria` y `severidad`, descartadas: la primera porque no existe en los sistemas reales (el WCS solo da el código de error) y la segunda porque mezclaba "duración del fallo" con "impacto operativo". La duración media de reparación por código (`duracion_media_min`) es el único atributo que el simulador necesita para sortear la duración real de cada fallo.
 
 ---
 
@@ -141,7 +140,7 @@ Se expresa en porcentaje. Es el indicador resumen que el tribunal y la direcció
 
 ### 3.4. Ciclos
 
-Número de misiones completadas por un equipo en el periodo. Para los SRM, un ciclo equivale a una misión de almacenamiento o extracción. Para los STV de doble cuna del anillo de salida, debe contemplarse que una misión puede transportar dos pallets, lo que afecta a la capacidad de ciclo.
+Número de misiones completadas por un transelevador en el periodo. Un ciclo equivale a una misión de almacenamiento o extracción.
 
 ### 3.5. Tiempo de ciclo
 
@@ -160,17 +159,15 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
 ```
 ┌─ Barra lateral (filtros globales) ────────────┐
 │  • Rango de fechas                            │
-│  • Tipo de equipo (SRM / STV / todos)         │
-│  • Zona (entrada / salida / pasillo / todas)  │
+│  • Tipo de equipo (SRM)                       │
+│  • Zona (pasillo)                             │
 │  • Selector de módulo                         │
 └───────────────────────────────────────────────┘
 
   0. Resumen general (home / dashboard)
-  1. Fallos por zona y equipo
+  1. Fallos por pasillo y equipo
   2. Rendimiento de transelevadores SRM
-  3. Rendimiento de STV
-  4. Obstrucciones y rechazos
-  5. Expedición y rendimiento del anillo de salida
+  6. Comparativa de periodos
 ```
 
 ### 4.1. Filtros comunes
@@ -178,8 +175,8 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
 Presentes en todos los módulos, en la barra lateral, y aplicados de forma transversal a los datos antes de cualquier cálculo:
 
 - **Rango de fechas:** selector de fecha inicio/fin. Acota el periodo de todos los KPIs.
-- **Tipo de equipo:** `SRM` / `STV` / todos.
-- **Zona:** `anillo_entrada` / `anillo_salida` / `pasillo` / todas.
+- **Tipo de equipo:** `SRM` (único tipo con KPIs).
+- **Zona:** `pasillo` (única zona).
 
 ### 4.2. Vista de evolución anual
 
@@ -202,106 +199,61 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 6. Módulo 1 — Fallos por zona y equipo ✅
+## 6. Módulo 1 — Fallos por pasillo y equipo ✅
 
-**Propósito:** localizar dónde y en qué equipos se concentran los fallos, e incorporar la posición del equipo en el momento del fallo.
+**Propósito:** localizar en qué pasillos y transelevadores se concentran los fallos, e incorporar la posición del equipo en el momento del fallo.
 
 **Qué visualiza:**
-- **Ranking de equipos por nº de fallos** (barras horizontales ordenadas).
-- **Ranking por zona** (entrada / salida / pasillos).
-- **Posición del equipo en el momento del fallo:** para cada evento, se cruza con la misión activa en `ts_inicio_fallo` para situar geográficamente dónde se produjo el fallo (altura, ubicación, tramo del anillo). Mapa de calor o dispersión por ubicación.
+- **Plano de la instalación:** los 8 pasillos en paralelo coloreados por intensidad de fallos del SRM que los sirve.
+- **Ranking de transelevadores por nº de fallos** (barras horizontales ordenadas).
+- **Ranking por código de error** (top 10).
+- **Posición del equipo en el momento del fallo:** para cada evento se cruza con la misión activa en `ts_inicio_fallo` para situar la ubicación exacta (pasillo, altura, columna). Mapa de calor de alzado del pasillo seleccionado.
 - Evolución anual del nº de fallos.
 
 **Cálculos:**
-- Conteo de eventos agrupado por `id_equipo` y por `zona`.
+- Conteo de eventos agrupado por `id_equipo` y por `codigo_error`.
 - Cruce `eventos_incidencia` × `misiones` para asignar posición al fallo (la misión cuyo intervalo `[ts_inicio, ts_fin]` contiene `ts_inicio_fallo`).
 
-**Filtros:** solo los tres comunes (fechas, tipo de equipo, zona).
+**Filtros:** los comunes (fechas, tipo de equipo, zona).
 
 ---
 
 ## 7. Módulo 2 — Rendimiento de transelevadores SRM ✅
 
-**Propósito:** evaluar individualmente los 20 SRM, el corazón de la instalación.
+**Propósito:** evaluar individualmente los 8 SRM, el corazón de la instalación.
 
 **Qué visualiza:**
-- Tabla comparativa de los 20 SRM: MTTR, MTBF, disponibilidad y ciclos por equipo.
+- Tabla comparativa de los 8 SRM: MTTR, MTBF, disponibilidad y ciclos por equipo.
 - **Gráfica de disponibilidad por SRM** (barras), con línea de referencia del objetivo/medio.
 - Detalle individual al seleccionar un SRM: sus KPIs, su histórico de fallos (con duración real en minutos por evento) y su evolución anual de disponibilidad.
 - Relación ciclos vs. fallos (¿los equipos más solicitados fallan más?).
 
 **Cálculos:** MTTR, MTBF, disponibilidad y ciclos (sección 3) calculados por equipo para `tipo = SRM`.
 
-**Filtros:** rango de fechas; zona implícita (pasillos); selector de SRM individual.
+**Filtros:** rango de fechas; selector de SRM individual.
 
 ---
 
-## 8. Módulo 3 — Rendimiento de STV ✅
+## 8. Módulo 6 — Comparativa de periodos ✅
 
-**Propósito:** evaluar los STV diferenciando los dos anillos, porque tienen configuración distinta (cuna simple en entrada, doble cuna en salida) y su comportamiento no es comparable directamente.
+**Propósito:** comparar dos rangos de fechas y medir la variación de los KPIs principales para detectar mejoras, regresiones o estacionalidad.
 
 **Qué visualiza:**
-- KPIs (MTTR, MTBF, disponibilidad, ciclos) **segmentados por anillo**: 20 STV de entrada vs. 10 STV de salida.
-- Tabla comparativa intra-anillo.
-- Gráficas de disponibilidad por STV dentro de cada anillo.
-- Detalle individual por STV.
-- Evolución anual por anillo.
+- Tarjetas con valor en el periodo A, valor en el periodo B y delta coloreado (disponibilidad, MTTR, nº de fallos, ciclos).
+- Comparativa de disponibilidad por transelevador (A vs. B) y tabla con las mayores caídas/subidas.
 
-**Cálculos:** los mismos KPIs, agrupados primero por `zona` (entrada/salida) y luego por equipo. La doble cuna del anillo de salida se tiene en cuenta al interpretar ciclos y capacidad.
+**Cálculos:** los KPIs de la sección 3 calculados de forma independiente para cada periodo, respetando los filtros globales de tipo/zona.
 
-**Filtros:** rango de fechas; selector de anillo (entrada / salida / ambos); selector de STV individual.
+**Filtros:** dos selectores de rango de fechas (A y B); los filtros globales de tipo/zona.
 
 ---
 
-## 9. Módulo 4 — Obstrucciones y rechazos ✅
+## 9. Notas de implementación para el desarrollo
 
-**Propósito:** analizar los rechazos y obstrucciones, que tienen una doble dimensión.
-
-- **Dimensión de mantenimiento:** rechazos por sensores del inspector de pallets descalibrados. Son fallos corregibles que generan falsos rechazos.
-- **Dimensión operativa:** saturación del anillo. Reducir rechazos desatura el anillo y libera a los operarios de los puestos de rechazo.
-
-**Qué visualiza:**
-- **Distribución geográfica de rechazos** (en qué puntos del anillo / inspectores se concentran).
-- Ranking de puntos de inspección por nº de rechazos.
-- Separación entre rechazos de causa de mantenimiento (sensor) y de causa operativa (saturación), en la medida en que el código de error lo permita.
-- Tasa de rechazo: rechazos / misiones totales.
-- Evolución anual de la tasa de rechazo.
-
-**Cálculos:**
-- Filtrado de `misiones` con `estado = rechazada` y de eventos asociados a posicionamiento/inspección.
-- Agrupación geográfica por `posicion` del rechazo.
-- Tasa de rechazo = nº rechazos / nº misiones, por punto y global.
-
-**Filtros:** rango de fechas; zona (anillos).
-
----
-
-## 10. Módulo 5 — Expedición y rendimiento del anillo de salida ✅
-
-**Propósito:** medir el rendimiento de la expedición, centrado en los tiempos de ciclo del anillo de salida (los 10 STV de doble cuna).
-
-**Qué visualiza:**
-- Tiempo de ciclo medio del anillo de salida y su distribución (histograma / boxplot).
-- Tiempos de ciclo por STV de salida.
-- Throughput de expedición (pallets/hora), teniendo en cuenta la doble cuna.
-- Identificación de cuellos de botella (STV con tiempos de ciclo atípicos).
-- Evolución anual del tiempo de ciclo medio.
-
-**Cálculos:**
-- Tiempo de ciclo (sección 3.5) sobre misiones completadas de STV de salida.
-- Throughput = pallets expedidos / tiempo, considerando que una misión de doble cuna puede mover dos pallets.
-- Estadísticos de distribución (media, mediana, percentiles).
-
-**Filtros:** rango de fechas; selector de STV de salida individual.
-
----
-
-## 11. Notas de implementación para el desarrollo
-
-- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — 4,84 M misiones · 9.700 eventos · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con 10 tests.
-- **Capa de cálculo separada de la capa de visualización:** ✅ `src/kpis.py` — funciones puras de pandas, 23 tests unitarios verdes, cero `import streamlit`.
+- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — ~0,41 M misiones · ~940 eventos · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con tests.
+- **Capa de cálculo separada de la capa de visualización:** ✅ `src/kpis.py` — funciones puras de pandas, tests unitarios verdes, cero `import streamlit`.
 - **Cacheo:** `@st.cache_data` aplicado mediante `st.cache_data(cargar_tablas)` en cada página, manteniendo `src/data_loader.py` libre de dependencias de Streamlit.
 - **Internacionalización de unidades:** parámetro global `UNIDAD_TIEMPO` en `src/config.py` para mostrar tiempos en minutos u horas.
 - **Inicialización de filtros globales:** ✅ `src/config.py` expone `init_session_state()`, llamada al inicio de cada página. Garantiza que `rango_fechas`, `tipos_equipo` y `zonas` tienen valores por defecto (año completo, todos los equipos, todas las zonas) aunque el usuario navegue directamente a una subpágina sin pasar por `app.py`.
 - **Evolución anual de disponibilidad:** ✅ `src/kpis.py` — función `disponibilidad_mensual()` que recorta (clip) los eventos que cruzan límite de mes al sub-rango de cada mes, para un cálculo correcto de disponibilidad mensual media.
-- **Roadmap de producto:** migración a datos reales del WMS/WCS manteniendo el mismo esquema y la misma capa de cálculo; despliegue como webapp persistente conectada a base de datos (línea Next.js + base de datos gestionada) e integración con la herramienta Grafana de monitorización en tiempo real ya en marcha en la instalación.
+- **Roadmap de producto:** migración a datos reales del WMS/WCS manteniendo el mismo esquema y la misma capa de cálculo; despliegue como webapp persistente conectada a base de datos (línea Next.js + base de datos gestionada) e integración con una herramienta de monitorización en tiempo real tipo Grafana.

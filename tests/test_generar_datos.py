@@ -36,12 +36,9 @@ def dataset():
 
 def test_equipos_conteo(dataset):
     eq = dataset["equipos"]
-    assert len(eq) == 50
-    assert (eq["tipo"] == "SRM").sum() == 20
-    srm = eq[eq["tipo"] == "SRM"]
-    stv = eq[eq["tipo"] == "STV"]
-    assert (stv["zona"] == "anillo_entrada").sum() == 20
-    assert (stv["zona"] == "anillo_salida").sum() == 10
+    assert len(eq) == 8
+    assert (eq["tipo"] == "SRM").sum() == 8
+    assert (eq["zona"] == "pasillo").all()
 
 
 def test_fks_misiones(dataset):
@@ -112,7 +109,7 @@ def test_estacionalidad_misiones(dataset):
 def test_estados_misiones(dataset):
     mis = dataset["misiones"]
     estados = set(mis["estado"].unique())
-    assert estados == {"completada", "abortada", "rechazada"}
+    assert estados == {"completada", "abortada"}
     completadas_pct = (mis["estado"] == "completada").mean()
     assert 0.90 <= completadas_pct <= 0.99
 

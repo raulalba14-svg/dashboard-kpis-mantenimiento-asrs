@@ -21,8 +21,6 @@ from src.kpis import (
     disponibilidad_por_equipo,
     mttr_por_equipo,
     ciclos_por_equipo,
-    tasa_rechazo,
-    tiempo_ciclo,
 )
 
 
@@ -129,7 +127,7 @@ def rendimiento_srm(
     mis_srm = misiones[misiones["id_equipo"].isin(srm_ids)]
 
     if ev_srm.empty:
-        return "Los <b>20 SRM</b> no han registrado incidencias en el periodo filtrado."
+        return "Los <b>8 SRM</b> no han registrado incidencias en el periodo filtrado."
 
     disp = disponibilidad_por_equipo(ev_srm, rango)
     disp_media = float(disp.mean()) if len(disp) else 100.0
@@ -170,143 +168,4 @@ def rendimiento_srm(
         f"Disponibilidad media de los SRM: <b>{disp_media:.2f}%</b>. "
         + (f"El SRM más crítico es <b>{peor}</b>." if peor else "")
         + correlacion_msg
-    )
-
-
-# ---------------------------------------------------------------------------
-# Módulo 3 — Rendimiento STV
-# ---------------------------------------------------------------------------
-
-def rendimiento_stv(
-    eventos: pd.DataFrame,
-    misiones: pd.DataFrame,
-    equipos: pd.DataFrame,
-    rango: tuple[str, str],
-) -> str:
-    stv = equipos[equipos["tipo"] == "STV"]
-    if stv.empty:
-        return _vacio("No hay STV en los filtros activos.")
-
-    entrada_ids = set(stv.loc[stv["zona"] == "anillo_entrada", "id"])
-    salida_ids = set(stv.loc[stv["zona"] == "anillo_salida", "id"])
-
-    def _disp(ids: set) -> float | None:
-        ev = eventos[eventos["id_equipo"].isin(ids)]
-        if ev.empty:
-            return None
-        s = disponibilidad_por_equipo(ev, rango)
-        return float(s.mean()) if len(s) else None
-
-    disp_e = _disp(entrada_ids)
-    disp_s = _disp(salida_ids)
-
-    partes = []
-    if disp_e is not None:
-        partes.append(f"anillo de entrada <b>{disp_e:.2f}%</b>")
-    if disp_s is not None:
-        partes.append(f"anillo de salida <b>{disp_s:.2f}%</b>")
-
-    if not partes:
-        return "Los <b>30 STV</b> no han registrado incidencias en el periodo filtrado."
-
-    cabecera = "Disponibilidad por anillo — " + " · ".join(partes) + "."
-
-    # Cuello de botella
-    cierre = ""
-    if disp_e is not None and disp_s is not None:
-        if disp_s < disp_e - 1.0:
-            cierre = (
-                " El anillo de salida arrastra al conjunto — sus 10 STV de doble cuna "
-                "limitan el throughput de expedición."
-            )
-        elif disp_e < disp_s - 1.0:
-            cierre = (
-                " El anillo de entrada es el más crítico — los 20 STV de cuna simple "
-                "saturan el flujo de recepción."
-            )
-
-    return cabecera + cierre
-
-
-# ---------------------------------------------------------------------------
-# Módulo 4 — Obstrucciones y rechazos
-# ---------------------------------------------------------------------------
-
-def obstrucciones_rechazos(
-    misiones: pd.DataFrame,
-    eventos: pd.DataFrame,
-) -> str:
-    if misiones.empty:
-        return _vacio()
-
-    tasa = tasa_rechazo(misiones)
-    tasa_pct = tasa * 100 if tasa else 0.0
-    n_rechazos = int((misiones["estado"] == "rechazada").sum())
-    n_total = int(len(misiones))
-
-    if n_rechazos == 0:
-        return f"Cero rechazos sobre <b>{n_total:,}</b> misiones — el flujo del anillo es limpio."
-
-    return (
-        f"Tasa de rechazo global: <b>{tasa_pct:.2f}%</b> "
-        f"(<b>{n_rechazos:,}</b> rechazos sobre <b>{n_total:,}</b> misiones). "
-        "Una parte se debe a sensores descalibrados del inspector de pallets "
-        "(corregible con mantenimiento) y otra a saturación del anillo (dimensión operativa). "
-        "Reducir la primera libera operarios y desatura el flujo."
-    )
-
-
-# ---------------------------------------------------------------------------
-# Módulo 5 — Expedición / anillo de salida
-# ---------------------------------------------------------------------------
-
-def expedicion(
-    misiones: pd.DataFrame,
-    equipos: pd.DataFrame,
-    rango: tuple[str, str],
-) -> str:
-    salida_ids = set(equipos.loc[equipos["zona"] == "anillo_salida", "id"])
-    if not salida_ids:
-        return _vacio("No hay STV de salida en los filtros activos.")
-
-    mis_salida = misiones[
-        (misiones["id_equipo"].isin(salida_ids)) &
-        (misiones["estado"] == "completada")
-    ]
-    if mis_salida.empty:
-        return _vacio("No hay misiones completadas en el anillo de salida.")
-
-    t_ciclo_s = tiempo_ciclo(mis_salida, unidad="segundos")
-    t_medio = float(t_ciclo_s.mean())
-    t_mediana = float(t_ciclo_s.median())
-
-    # Throughput: doble cuna multiplica por 2 los pallets por misión completada
-    pallets = 2 * len(mis_salida)
-    ts_ini = pd.Timestamp(rango[0])
-    ts_fin = pd.Timestamp(rango[1]) + pd.Timedelta(days=1)
-    horas = (ts_fin - ts_ini).total_seconds() / 3600.0
-    throughput = pallets / horas if horas > 0 else 0
-
-    # Cuello de botella: STV con tiempo de ciclo medio más alto
-    t_por_stv = (
-        mis_salida.assign(
-            _t=(pd.to_datetime(mis_salida["ts_fin"])
-                - pd.to_datetime(mis_salida["ts_inicio"])).dt.total_seconds()
-        )
-        .groupby("id_equipo")["_t"].mean()
-    )
-    cuello = t_por_stv.idxmax() if len(t_por_stv) else None
-    cuello_t = float(t_por_stv.max()) if len(t_por_stv) else 0.0
-
-    cierre = (
-        f" El cuello de botella es <b>{cuello}</b> "
-        f"(<b>{cuello_t:.1f}s</b> de tiempo de ciclo medio)."
-        if cuello else ""
-    )
-
-    return (
-        f"Tiempo de ciclo medio en el anillo de salida: <b>{t_medio:.1f}s</b> "
-        f"(mediana <b>{t_mediana:.1f}s</b>). "
-        f"Throughput estimado: <b>{throughput:,.0f} pallets/h</b> aprovechando la doble cuna."
-        + cierre
     )

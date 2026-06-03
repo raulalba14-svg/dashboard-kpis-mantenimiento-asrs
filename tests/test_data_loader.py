@@ -7,45 +7,45 @@ from src.data_loader import aplicar_filtros_globales
 
 
 # ---------------------------------------------------------------------------
-# Fixture: parque mínimo con SRM en pasillo + STV en ambos anillos
+# Fixture: parque mínimo de 4 transelevadores SRM, todos en zona pasillo
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def tablas():
     equipos = pd.DataFrame([
-        {"id": "SRM-01",   "tipo": "SRM", "zona": "pasillo",        "estado_operativo": "operativo"},
-        {"id": "SRM-02",   "tipo": "SRM", "zona": "pasillo",        "estado_operativo": "operativo"},
-        {"id": "STV-E-01", "tipo": "STV", "zona": "anillo_entrada", "estado_operativo": "operativo"},
-        {"id": "STV-S-01", "tipo": "STV", "zona": "anillo_salida",  "estado_operativo": "operativo"},
+        {"id": "SRM-01", "tipo": "SRM", "zona": "pasillo", "estado_operativo": "operativo"},
+        {"id": "SRM-02", "tipo": "SRM", "zona": "pasillo", "estado_operativo": "operativo"},
+        {"id": "SRM-03", "tipo": "SRM", "zona": "pasillo", "estado_operativo": "operativo"},
+        {"id": "SRM-04", "tipo": "SRM", "zona": "pasillo", "estado_operativo": "operativo"},
     ])
     tipos_error = pd.DataFrame([
         {"codigo": "E01", "descripcion": "X", "duracion_media_min": 30},
     ])
     misiones = pd.DataFrame([
-        {"id_mision": 1, "id_equipo": "SRM-01",   "posicion_inicial": "A", "posicion_final": "B",
+        {"id_mision": 1, "id_equipo": "SRM-01", "posicion_inicial": "A", "posicion_final": "B",
          "ts_inicio": pd.Timestamp("2025-01-15 08:00"), "ts_fin": pd.Timestamp("2025-01-15 08:02"),
          "estado": "completada"},
-        {"id_mision": 2, "id_equipo": "SRM-02",   "posicion_inicial": "A", "posicion_final": "B",
+        {"id_mision": 2, "id_equipo": "SRM-02", "posicion_inicial": "A", "posicion_final": "B",
          "ts_inicio": pd.Timestamp("2025-06-10 09:00"), "ts_fin": pd.Timestamp("2025-06-10 09:02"),
          "estado": "completada"},
-        {"id_mision": 3, "id_equipo": "STV-E-01", "posicion_inicial": "A", "posicion_final": "B",
+        {"id_mision": 3, "id_equipo": "SRM-03", "posicion_inicial": "A", "posicion_final": "B",
          "ts_inicio": pd.Timestamp("2025-06-10 09:00"), "ts_fin": pd.Timestamp("2025-06-10 09:02"),
          "estado": "completada"},
-        {"id_mision": 4, "id_equipo": "STV-S-01", "posicion_inicial": "A", "posicion_final": "B",
+        {"id_mision": 4, "id_equipo": "SRM-04", "posicion_inicial": "A", "posicion_final": "B",
          "ts_inicio": pd.Timestamp("2025-12-20 10:00"), "ts_fin": pd.Timestamp("2025-12-20 10:02"),
          "estado": "completada"},
     ])
     eventos = pd.DataFrame([
-        {"id_evento": 1, "id_equipo": "SRM-01",   "codigo_error": "E01",
+        {"id_evento": 1, "id_equipo": "SRM-01", "codigo_error": "E01",
          "ts_inicio_fallo": pd.Timestamp("2025-01-15 08:00"),
          "ts_recuperacion": pd.Timestamp("2025-01-15 08:30"), "estado": "resuelto"},
-        {"id_evento": 2, "id_equipo": "SRM-02",   "codigo_error": "E01",
+        {"id_evento": 2, "id_equipo": "SRM-02", "codigo_error": "E01",
          "ts_inicio_fallo": pd.Timestamp("2025-06-10 09:00"),
          "ts_recuperacion": pd.Timestamp("2025-06-10 09:30"), "estado": "resuelto"},
-        {"id_evento": 3, "id_equipo": "STV-E-01", "codigo_error": "E01",
+        {"id_evento": 3, "id_equipo": "SRM-03", "codigo_error": "E01",
          "ts_inicio_fallo": pd.Timestamp("2025-06-10 09:00"),
          "ts_recuperacion": pd.Timestamp("2025-06-10 09:30"), "estado": "resuelto"},
-        {"id_evento": 4, "id_equipo": "STV-S-01", "codigo_error": "E01",
+        {"id_evento": 4, "id_equipo": "SRM-04", "codigo_error": "E01",
          "ts_inicio_fallo": pd.Timestamp("2025-12-20 10:00"),
          "ts_recuperacion": pd.Timestamp("2025-12-20 10:30"), "estado": "resuelto"},
     ])
@@ -79,13 +79,14 @@ class TestFiltroTipo:
     def test_solo_srm(self, tablas):
         out = aplicar_filtros_globales(tablas, tipos_equipo=["SRM"])
         assert set(out["equipos"]["tipo"]) == {"SRM"}
-        assert len(out["equipos"]) == 2
+        assert len(out["equipos"]) == 4
 
-    def test_propaga_a_misiones_y_eventos(self, tablas):
-        """Filtrar por SRM debe descartar misiones/eventos de STV."""
-        out = aplicar_filtros_globales(tablas, tipos_equipo=["SRM"])
-        assert set(out["misiones"]["id_equipo"]) == {"SRM-01", "SRM-02"}
-        assert set(out["eventos"]["id_equipo"]) == {"SRM-01", "SRM-02"}
+    def test_tipo_inexistente_vacia(self, tablas):
+        """Filtrar por un tipo que no existe deja el parque vacío."""
+        out = aplicar_filtros_globales(tablas, tipos_equipo=["NO_EXISTE"])
+        assert out["equipos"].empty
+        assert out["misiones"].empty
+        assert out["eventos"].empty
 
 
 # ---------------------------------------------------------------------------
@@ -93,18 +94,17 @@ class TestFiltroTipo:
 # ---------------------------------------------------------------------------
 
 class TestFiltroZona:
-    def test_solo_anillo_salida(self, tablas):
-        out = aplicar_filtros_globales(tablas, zonas=["anillo_salida"])
-        assert set(out["equipos"]["id"]) == {"STV-S-01"}
-        assert set(out["misiones"]["id_equipo"]) == {"STV-S-01"}
-        assert set(out["eventos"]["id_equipo"]) == {"STV-S-01"}
+    def test_solo_pasillo(self, tablas):
+        out = aplicar_filtros_globales(tablas, zonas=["pasillo"])
+        assert set(out["equipos"]["zona"]) == {"pasillo"}
+        assert len(out["equipos"]) == 4
 
     def test_combina_tipo_y_zona(self, tablas):
-        """tipos_equipo=[STV] + zonas=[anillo_entrada] → solo STV-E-01."""
+        """tipos_equipo=[SRM] + zonas=[pasillo] → los 4 SRM."""
         out = aplicar_filtros_globales(
-            tablas, tipos_equipo=["STV"], zonas=["anillo_entrada"]
+            tablas, tipos_equipo=["SRM"], zonas=["pasillo"]
         )
-        assert set(out["equipos"]["id"]) == {"STV-E-01"}
+        assert set(out["equipos"]["id"]) == {"SRM-01", "SRM-02", "SRM-03", "SRM-04"}
 
 
 # ---------------------------------------------------------------------------

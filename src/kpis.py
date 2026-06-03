@@ -126,23 +126,13 @@ def ciclos_por_equipo(
     equipos: pd.DataFrame | None = None,
 ) -> pd.Series:
     """
-    Número de misiones completadas por equipo.
+    Número de misiones completadas por equipo (cada misión = un ciclo).
 
-    Para STV de salida (doble cuna) se multiplica por 2 el conteo
-    si equipos DataFrame está disponible y la zona es 'anillo_salida'.
+    El parámetro `equipos` se acepta por compatibilidad de firma con los
+    llamadores; no influye en el conteo.
     """
     completadas = misiones[misiones["estado"] == "completada"]
-    ciclos = completadas.groupby("id_equipo").size().rename("ciclos")
-
-    if equipos is not None:
-        salida = set(
-            equipos.loc[equipos["zona"] == "anillo_salida", "id"]
-        )
-        ciclos = ciclos.copy()
-        mask = ciclos.index.isin(salida)
-        ciclos[mask] *= 2
-
-    return ciclos
+    return completadas.groupby("id_equipo").size().rename("ciclos")
 
 
 # ---------------------------------------------------------------------------
@@ -229,34 +219,6 @@ def posicion_en_fallo(
         columns=["index", "ts_inicio", "ts_fin"]
     ).reset_index(drop=True)
     return resultado
-
-
-# ---------------------------------------------------------------------------
-# Tasa de rechazo  (sección 9)
-# ---------------------------------------------------------------------------
-
-def tasa_rechazo(
-    misiones: pd.DataFrame,
-    agrupar_por: str | None = None,
-) -> float | pd.Series:
-    """
-    tasa_rechazo = nº rechazos / nº misiones totales
-
-    agrupar_por: columna de misiones por la que agrupar (p.ej. 'id_equipo',
-                 'posicion_inicial'). None → escalar global.
-    """
-    if agrupar_por is None:
-        if len(misiones) == 0:
-            return 0.0
-        return (misiones["estado"] == "rechazada").sum() / len(misiones)
-
-    rechazos = (
-        misiones[misiones["estado"] == "rechazada"]
-        .groupby(agrupar_por)
-        .size()
-    )
-    total = misiones.groupby(agrupar_por).size()
-    return (rechazos / total).fillna(0).rename("tasa_rechazo")
 
 
 # ---------------------------------------------------------------------------

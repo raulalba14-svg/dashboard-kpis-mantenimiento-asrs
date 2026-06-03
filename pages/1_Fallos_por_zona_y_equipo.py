@@ -6,7 +6,7 @@ import pandas as pd
 from src.data_loader import cargar_tablas, aplicar_filtros_globales
 from src.kpis import posicion_en_fallo
 from src.charts import (
-    plano_almacen, barras_ranking_umbrales, heatmap_posicion,
+    plano_almacen, barras_ranking_umbrales,
     heatmap_alzado_pasillo, serie_anual_area, kpi_card_html,
 )
 from src.theme import (
@@ -40,10 +40,10 @@ if not rango_valido(rango):
 
 hero(
     kicker="Módulo 1",
-    titulo="Fallos por zona y equipo",
+    titulo="Fallos por pasillo y equipo",
     subtitulo=(
         "Localización geográfica de los fallos sobre el plano de la instalación. "
-        "Identifica concentraciones por zona, equipo y categoría."
+        "Identifica concentraciones por transelevador, pasillo y código de error."
     ),
 )
 
@@ -118,38 +118,17 @@ ev_srm = ev_enriq[ev_enriq["tipo"] == "SRM"].copy()
 ev_srm["pasillo_num"] = ev_srm["id_equipo"].str.extract(r"SRM-(\d+)")[0].astype(int)
 fallos_pasillos = ev_srm.groupby("pasillo_num").size().to_dict()
 
-# Mapeo STV entrada/salida → tramo (via posicion en fallo)
-ev_stv = ev_enriq[ev_enriq["tipo"] == "STV"].copy()
-ev_stv_pos = posicion_en_fallo(ev_stv, misiones)
-ev_stv_pos = ev_stv_pos.dropna(subset=["posicion_inicial"])
-
-fallos_entrada = {}
-fallos_salida = {}
-if not ev_stv_pos.empty:
-    ev_stv_pos["tramo_num"] = ev_stv_pos["posicion_inicial"].str.extract(r"T(\d+)").astype(float)
-    ev_stv_pos["anillo"] = ev_stv_pos["posicion_inicial"].str[:3]
-    fallos_entrada = (ev_stv_pos[ev_stv_pos["anillo"] == "ENT"]
-                      .dropna(subset=["tramo_num"])
-                      .groupby(ev_stv_pos["tramo_num"].astype(int))
-                      .size().to_dict())
-    fallos_salida = (ev_stv_pos[ev_stv_pos["anillo"] == "SAL"]
-                     .dropna(subset=["tramo_num"])
-                     .groupby(ev_stv_pos["tramo_num"].astype(int))
-                     .size().to_dict())
-
 fig_plano = plano_almacen(
     fallos_pasillos=fallos_pasillos,
-    fallos_entrada=fallos_entrada,
-    fallos_salida=fallos_salida,
     titulo="",
 )
 st.plotly_chart(fig_plano, use_container_width=True,
                 config={"displayModeBar": False})
 
 st.caption(
-    "**Lectura:** cada celda representa un equipo (pasillo SRM) o un tramo (anillo). "
+    "**Lectura:** cada pasillo representa un transelevador (SRM). "
     "Cuanto más oscuro el color, mayor concentración de fallos en el periodo. "
-    "Las zonas en rojo son las que deben recibir atención prioritaria."
+    "Los pasillos en rojo son los que deben recibir atención prioritaria."
 )
 
 st.divider()
@@ -159,21 +138,14 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.subheader("Rankings de fallos")
-col_eq, col_zona = st.columns(2)
+col_eq, col_cod = st.columns(2)
+
+import plotly.graph_objects as go
 
 with col_eq:
     n_por_equipo = ev_enriq.groupby("id_equipo").size().sort_values(ascending=False)
-    st.markdown("**Por equipo** (top 20)")
-    fig_eq = barras_ranking_umbrales(
-        n_por_equipo.head(20),
-        titulo="",
-        label_x="Nº fallos",
-        umbral_alto=0, umbral_bajo=0,   # invertido: más = peor → todos rojos no
-        invertir=True,
-    )
-    # Anular umbrales: rehacemos colorización por percentiles
-    import plotly.graph_objects as go
-    df = n_por_equipo.head(20).reset_index()
+    st.markdown("**Por transelevador**")
+    df = n_por_equipo.reset_index()
     df.columns = ["equipo", "valor"]
     df = df.sort_values("valor", ascending=True)
     p66 = df["valor"].quantile(0.66)
@@ -191,37 +163,36 @@ with col_eq:
     ))
     fig_eq.update_layout(
         title="", xaxis_title="Nº fallos", yaxis_title="",
-        height=max(280, 22 * len(df) + 80), bargap=0.25,
+        height=max(280, 26 * len(df) + 80), bargap=0.25,
     )
     st.plotly_chart(fig_eq, use_container_width=True,
                     config={"displayModeBar": False})
 
-with col_zona:
-    zonas_labels = {
-        "pasillo": "Pasillo (SRM)",
-        "anillo_entrada": "Anillo entrada",
-        "anillo_salida": "Anillo salida",
-    }
-    n_por_zona = ev_enriq.groupby("zona").size().rename("n_fallos")
-
-    df_zona = n_por_zona.reset_index()
-    df_zona.columns = ["zona", "valor"]
-    df_zona["zona"] = df_zona["zona"].map(lambda z: zonas_labels.get(z, z))
-    df_zona = df_zona.sort_values("valor", ascending=True)
-
-    st.markdown("**Por zona**")
-    fig_zona = go.Figure(go.Bar(
-        x=df_zona["valor"], y=df_zona["zona"], orientation="h",
+with col_cod:
+    st.markdown("**Por código de error** (top 10)")
+    n_por_codigo = (
+        ev_enriq.assign(
+            etiqueta=lambda d: d["codigo_error"] + " · " + d["descripcion"].fillna("")
+        )
+        .groupby("etiqueta").size()
+        .sort_values(ascending=False)
+        .head(10)
+    )
+    df_cod = n_por_codigo.reset_index()
+    df_cod.columns = ["codigo", "valor"]
+    df_cod = df_cod.sort_values("valor", ascending=True)
+    fig_cod = go.Figure(go.Bar(
+        x=df_cod["valor"], y=df_cod["codigo"], orientation="h",
         marker=dict(color=PRIMARIO, line=dict(color="white", width=0.5)),
-        text=df_zona["valor"], textposition="outside",
+        text=df_cod["valor"], textposition="outside",
         textfont=dict(color=GRIS_700, size=11),
         hovertemplate="<b>%{y}</b><br>%{x} fallos<extra></extra>",
     ))
-    fig_zona.update_layout(
+    fig_cod.update_layout(
         title="", xaxis_title="Nº fallos", yaxis_title="",
-        height=280, bargap=0.4,
+        height=max(280, 26 * len(df_cod) + 80), bargap=0.3,
     )
-    st.plotly_chart(fig_zona, use_container_width=True,
+    st.plotly_chart(fig_cod, use_container_width=True,
                     config={"displayModeBar": False})
 
 st.divider()
@@ -250,7 +221,7 @@ if not srm_pos.empty:
     # Ranking de pasillos por nº de fallos para sugerir el más conflictivo por defecto
     fallos_por_pasillo = (srm_pos.groupby("pasillo").size()
                           .sort_values(ascending=False))
-    pasillos_disponibles = [f"P{i:02d}" for i in range(1, 21)]
+    pasillos_disponibles = [f"P{i:02d}" for i in range(1, 9)]
     pasillo_top = (fallos_por_pasillo.index[0]
                    if len(fallos_por_pasillo) else "P01")
 
@@ -351,7 +322,8 @@ st.divider()
 _datasets_export = {
     "Fallos por equipo": n_por_equipo.rename("n_fallos")
                          .reset_index().rename(columns={"index": "id_equipo"}),
-    "Fallos por zona": n_por_zona.reset_index(),
+    "Fallos por codigo": ev_enriq.groupby("codigo_error").size()
+                         .rename("n_fallos").reset_index(),
     "Fallos mensuales": serie_fallos_mes.reset_index().rename(
         columns={"_mes": "mes"}
     ),

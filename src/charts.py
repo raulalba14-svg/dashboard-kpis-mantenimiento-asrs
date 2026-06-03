@@ -90,8 +90,8 @@ def heatmap_posicion(df: pd.DataFrame, col_x: str, col_y: str,
 def heatmap_alzado_pasillo(
     df: pd.DataFrame,
     pasillo: str,
-    n_columnas: int = 60,
-    n_alturas: int = 12,
+    n_columnas: int = 48,
+    n_alturas: int = 16,
     titulo: str = "",
 ) -> go.Figure:
     """
@@ -459,167 +459,25 @@ def histograma_distribucion(
     return fig
 
 
-def donut_categoria(serie: pd.Series, titulo: str = "",
-                    color_map: dict | None = None) -> go.Figure:
-    """
-    Donut chart con la paleta semántica por defecto.
-    """
-    df = serie.reset_index()
-    df.columns = ["categoria", "valor"]
-    color_map = color_map or COLOR_CATEGORIA
-    colores = [color_map.get(c, PRIMARIO_CLARO) for c in df["categoria"]]
-
-    total = df["valor"].sum()
-    fig = go.Figure(go.Pie(
-        labels=df["categoria"], values=df["valor"],
-        hole=0.62,
-        marker=dict(colors=colores, line=dict(color="white", width=2)),
-        textinfo="label+percent",
-        textposition="outside",
-        hovertemplate="<b>%{label}</b><br>%{value:,} fallos<br>%{percent}<extra></extra>",
-    ))
-    fig.update_layout(
-        title=titulo,
-        showlegend=False,
-        annotations=[dict(
-            text=f"<b>{int(total):,}</b><br><span style='font-size:11px;color:{GRIS_500}'>Total</span>",
-            x=0.5, y=0.5, font=dict(size=18, color=GRIS_900),
-            showarrow=False,
-        )],
-        height=340,
-    )
-    return fig
-
-
-def dual_axis(
-    serie_a: pd.Series, label_a: str, color_a: str,
-    serie_b: pd.Series, label_b: str, color_b: str,
-    titulo: str,
-) -> go.Figure:
-    """
-    Línea+barras en dos ejes Y (p. ej. TC medio vs. throughput).
-    Ambas series indexadas por el mismo eje X (mes 1..12).
-    """
-    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
-    x = [meses[m - 1] for m in serie_a.index]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=x, y=serie_a.values, name=label_a,
-        marker_color=color_a, opacity=0.78,
-        yaxis="y", hovertemplate=f"{label_a}: %{{y:.1f}}<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=serie_b.values, name=label_b,
-        mode="lines+markers", line=dict(color=color_b, width=3),
-        marker=dict(size=8), yaxis="y2",
-        hovertemplate=f"{label_b}: %{{y:.1f}}<extra></extra>",
-    ))
-    fig.update_layout(
-        title=titulo,
-        xaxis=dict(title=""),
-        yaxis=dict(title=label_a, color=color_a, gridcolor="#E4E7EC"),
-        yaxis2=dict(title=label_b, color=color_b, overlaying="y",
-                    side="right", showgrid=False),
-        legend=dict(orientation="h", y=1.08, x=0),
-        height=340,
-    )
-    return fig
-
-
-def banda_tramos(serie: pd.Series, titulo: str, label_y: str = "",
-                 color: str | None = None) -> go.Figure:
-    """
-    Distribución a lo largo de tramos lineales (anillo entrada/salida).
-
-    serie: indexada por etiqueta de tramo (T01..T40), valor = nº de eventos/rechazos.
-    Útil para "ver" la concentración geográfica como una banda.
-    """
-    color = color or PRIMARIO
-    df = serie.reset_index()
-    df.columns = ["tramo", "valor"]
-
-    fig = go.Figure(go.Bar(
-        x=df["tramo"], y=df["valor"],
-        marker=dict(color=df["valor"],
-                    colorscale=[[0.0, "#EAF2F9"], [0.5, PRIMARIO_CLARO], [1.0, color]],
-                    showscale=False,
-                    line=dict(color="white", width=0.5)),
-        hovertemplate="<b>%{x}</b><br>" + label_y + ": %{y:,}<extra></extra>",
-    ))
-    media = float(df["valor"].mean())
-    fig.add_hline(y=media, line_dash="dash", line_color=GRIS_500,
-                  annotation_text=f"Media: {media:.1f}",
-                  annotation_position="top right",
-                  annotation_font_color=GRIS_700)
-
-    fig.update_layout(
-        title=titulo,
-        xaxis_title="Tramo",
-        yaxis_title=label_y,
-        bargap=0.15,
-        showlegend=False,
-        height=300,
-    )
-    return fig
-
-
-def evolucion_dos_lineas(
-    serie_a: pd.Series, label_a: str, color_a: str,
-    serie_b: pd.Series, label_b: str, color_b: str,
-    titulo: str, label_y: str = "",
-) -> go.Figure:
-    """Dos series mensuales superpuestas con leyenda."""
-    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
-    fig = go.Figure()
-    for serie, label, color in [(serie_a, label_a, color_a),
-                                 (serie_b, label_b, color_b)]:
-        s = serie.reindex(range(1, 13))
-        fig.add_trace(go.Scatter(
-            x=[meses[i - 1] for i in s.index],
-            y=s.values,
-            mode="lines+markers",
-            name=label,
-            line=dict(color=color, width=3),
-            marker=dict(size=8, color=color, line=dict(color="white", width=1.5)),
-            hovertemplate=f"<b>{label}</b><br>%{{x}}: %{{y:.2f}}<extra></extra>",
-        ))
-    fig.update_layout(
-        title=titulo,
-        xaxis_title="",
-        yaxis_title=label_y,
-        legend=dict(orientation="h", y=1.08, x=0),
-        height=340,
-    )
-    return fig
-
-
 def plano_almacen(
     fallos_pasillos: dict[int, int],
-    fallos_entrada:  dict[int, int],
-    fallos_salida:   dict[int, int],
+    n_pasillos: int = 8,
     titulo: str = "Plano de la instalación — concentración de fallos",
 ) -> go.Figure:
     """
     Plano esquemático del almacén AS/RS.
 
-    - 20 pasillos SRM como rectángulos verticales en grid 5×4.
-    - Banda superior con los 20 tramos del anillo de entrada.
-    - Banda inferior con los 10 tramos del anillo de salida.
-    - Color por intensidad de fallos.
+    8 pasillos en paralelo, cada uno servido por su transelevador (SRM-XX).
+    Cada pasillo se dibuja como un rectángulo vertical, con un transportador
+    de entrada arriba y otro de salida abajo (contexto, sin KPIs). El color
+    del pasillo codifica la intensidad de fallos del SRM correspondiente.
 
     Parámetros:
-        fallos_pasillos: {pasillo (1..20): n_fallos}
-        fallos_entrada:  {tramo (1..20): n_fallos}
-        fallos_salida:   {tramo (1..10): n_fallos}
+        fallos_pasillos: {pasillo (1..n_pasillos): n_fallos}
     """
     fig = go.Figure()
 
-    # Normalizador para colorscale
-    all_vals = (list(fallos_pasillos.values())
-                + list(fallos_entrada.values())
-                + list(fallos_salida.values()))
-    vmax = max(all_vals) if all_vals else 1
+    vmax = max(fallos_pasillos.values()) if fallos_pasillos else 1
 
     def _color(v: int) -> str:
         if vmax == 0:
@@ -634,110 +492,81 @@ def plano_almacen(
         else:
             return CRITICO
 
-    # ----- Anillo entrada (banda superior) -----
-    y_ent = 11
-    for t in range(1, 21):
-        v = fallos_entrada.get(t, 0)
-        fig.add_shape(
-            type="rect",
-            x0=(t - 1) * 1.0 + 0.5, x1=t * 1.0 + 0.4,
-            y0=y_ent, y1=y_ent + 0.9,
-            line=dict(color="white", width=1),
-            fillcolor=_color(v),
-        )
-        fig.add_trace(go.Scatter(
-            x=[(t - 1) * 1.0 + 0.95], y=[y_ent + 0.45],
-            mode="markers", marker=dict(opacity=0, size=22),
-            showlegend=False,
-            hovertemplate=f"<b>Entrada · T{t:02d}</b><br>{v:,} fallos<extra></extra>",
-        ))
+    paso = 1.4          # separación horizontal entre pasillos
+    x0_base = 0.5
+    y_pas_bot, y_pas_top = 3.0, 10.0
+    y_ent = y_pas_top + 0.3   # transportador de entrada (banda fina arriba)
+    y_sal = y_pas_bot - 1.2   # transportador de salida (banda fina abajo)
 
-    fig.add_annotation(x=10.5, y=y_ent + 1.2,
-                       text=f"<b>Anillo de entrada</b> · 20 tramos",
-                       showarrow=False, font=dict(size=12, color=GRIS_700))
-
-    # ----- Pasillos SRM (rejilla central) -----
-    # Disposición: 20 pasillos en 1 fila horizontal larga
-    y_pas_bot = 4
-    y_pas_top = 10
-    for p in range(1, 21):
+    for p in range(1, n_pasillos + 1):
         v = fallos_pasillos.get(p, 0)
-        fig.add_shape(
-            type="rect",
-            x0=(p - 1) * 1.0 + 0.55, x1=p * 1.0 + 0.35,
-            y0=y_pas_bot, y1=y_pas_top,
-            line=dict(color="white", width=1.5),
-            fillcolor=_color(v),
-        )
+        x0 = x0_base + (p - 1) * paso
+        x1 = x0 + 1.0
+        xc = (x0 + x1) / 2
+
+        # Transportador de entrada (gris claro, contexto)
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_ent, y1=y_ent + 0.5,
+                      line=dict(color="white", width=1), fillcolor=GRIS_300)
+        # Pasillo (color por nº de fallos del SRM)
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_pas_bot, y1=y_pas_top,
+                      line=dict(color="white", width=1.5), fillcolor=_color(v))
+        # Transportador de salida (gris claro, contexto)
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_sal, y1=y_sal + 0.5,
+                      line=dict(color="white", width=1), fillcolor=GRIS_300)
+
         fig.add_annotation(
-            x=(p - 1) * 1.0 + 0.95, y=(y_pas_top + y_pas_bot) / 2,
-            text=f"P{p:02d}<br><b>{v}</b>",
+            x=xc, y=(y_pas_top + y_pas_bot) / 2,
+            text=f"SRM-{p:02d}<br><b>{v}</b>",
             showarrow=False,
-            font=dict(size=10, color="white" if v >= vmax * 0.5 else GRIS_900),
+            font=dict(size=11, color="white" if v >= vmax * 0.5 else GRIS_900),
         )
         fig.add_trace(go.Scatter(
-            x=[(p - 1) * 1.0 + 0.95], y=[(y_pas_top + y_pas_bot) / 2],
+            x=[xc], y=[(y_pas_top + y_pas_bot) / 2],
             mode="markers", marker=dict(opacity=0, size=30),
             showlegend=False,
-            hovertemplate=f"<b>Pasillo P{p:02d}</b><br>{v:,} fallos<extra></extra>",
+            hovertemplate=f"<b>Pasillo P{p:02d} · SRM-{p:02d}</b><br>{v:,} fallos<extra></extra>",
         ))
 
-    fig.add_annotation(x=10.5, y=y_pas_top + 0.5,
-                       text="<b>20 pasillos SRM · 12 alturas cada uno</b>",
+    ancho_total = x0_base + n_pasillos * paso
+    xc_total = ancho_total / 2
+
+    fig.add_annotation(x=xc_total, y=y_ent + 0.9,
+                       text="<b>Transportadores de entrada</b>",
+                       showarrow=False, font=dict(size=11, color=GRIS_500))
+    fig.add_annotation(x=xc_total, y=y_pas_top + 1.4,
+                       text=f"<b>{n_pasillos} pasillos · 1 transelevador por pasillo · 16 alturas</b>",
                        showarrow=False, font=dict(size=12, color=GRIS_700))
-
-    # ----- Anillo salida (banda inferior, 10 tramos centrados) -----
-    y_sal = 2.0
-    offset_sal = 5.5  # centrado bajo los pasillos 6..15
-    for t in range(1, 11):
-        v = fallos_salida.get(t, 0)
-        fig.add_shape(
-            type="rect",
-            x0=offset_sal + (t - 1) * 1.0 + 0.55,
-            x1=offset_sal + t * 1.0 + 0.35,
-            y0=y_sal, y1=y_sal + 0.9,
-            line=dict(color="white", width=1),
-            fillcolor=_color(v),
-        )
-        fig.add_trace(go.Scatter(
-            x=[offset_sal + (t - 1) * 1.0 + 0.95], y=[y_sal + 0.45],
-            mode="markers", marker=dict(opacity=0, size=22),
-            showlegend=False,
-            hovertemplate=f"<b>Salida · T{t:02d}</b><br>{v:,} fallos<extra></extra>",
-        ))
-
-    fig.add_annotation(
-        x=10.5, y=y_sal - 0.4,
-        text="<b>Anillo de salida</b> · 10 tramos (doble cuna)",
-        showarrow=False, font=dict(size=12, color=GRIS_700),
-    )
+    fig.add_annotation(x=xc_total, y=y_sal - 0.4,
+                       text="<b>Transportadores de salida</b>",
+                       showarrow=False, font=dict(size=11, color=GRIS_500))
 
     # Leyenda manual (colorbar discreta)
-    leyenda_y = 0.4
+    leyenda_y = y_sal - 1.4
     leyenda_items = [("Bajo", "#A8C8E0"),
                      ("Medio", PRIMARIO_CLARO),
                      ("Alto", ADVERTENCIA),
                      ("Crítico", CRITICO)]
+    lx0 = xc_total - 2.4
     for i, (etq, col) in enumerate(leyenda_items):
         fig.add_shape(
             type="rect",
-            x0=7.5 + i * 1.5, x1=7.7 + i * 1.5,
+            x0=lx0 + i * 1.3, x1=lx0 + 0.2 + i * 1.3,
             y0=leyenda_y, y1=leyenda_y + 0.35,
             line=dict(color="white", width=0),
             fillcolor=col,
         )
         fig.add_annotation(
-            x=8.0 + i * 1.5, y=leyenda_y + 0.18,
+            x=lx0 + 0.3 + i * 1.3, y=leyenda_y + 0.18,
             text=etq, showarrow=False,
             font=dict(size=11, color=GRIS_700), xanchor="left",
         )
 
     fig.update_layout(
         title=titulo,
-        xaxis=dict(range=[-0.5, 22], showgrid=False, zeroline=False,
+        xaxis=dict(range=[-0.5, ancho_total + 0.5], showgrid=False, zeroline=False,
                    showticklabels=False, fixedrange=True),
-        yaxis=dict(range=[-0.5, 13.5], showgrid=False, zeroline=False,
-                   showticklabels=False, fixedrange=True,
+        yaxis=dict(range=[leyenda_y - 0.6, y_pas_top + 2.0], showgrid=False,
+                   zeroline=False, showticklabels=False, fixedrange=True,
                    scaleanchor="x", scaleratio=0.7),
         height=480,
         margin=dict(l=10, r=10, t=60, b=10),

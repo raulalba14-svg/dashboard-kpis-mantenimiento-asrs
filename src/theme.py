@@ -34,7 +34,7 @@ SECUENCIA = [
     "#7E57C2", "#26A69A", "#EC407A", "#5C6BC0", "#8D6E63",
 ]
 
-# Paletas semánticas por dominio (sustituyen a las antiguas en config.py)
+# Paletas semánticas por dominio
 COLOR_CATEGORIA = {
     "electrica":       CRITICO,
     "mecanica":        PRIMARIO,
@@ -51,8 +51,7 @@ COLOR_SEVERIDAD = {
 
 COLOR_ESTADO_MISION = {
     "completada": EXITO,
-    "abortada":   ADVERTENCIA,
-    "rechazada":  CRITICO,
+    "abortada":   CRITICO,
 }
 
 

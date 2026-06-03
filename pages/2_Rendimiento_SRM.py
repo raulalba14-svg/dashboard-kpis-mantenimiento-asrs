@@ -40,7 +40,7 @@ hero(
     kicker="Módulo 2",
     titulo="Rendimiento de transelevadores SRM",
     subtitulo=(
-        "Análisis individual de los 20 SRM monomástiles que sirven los pasillos. "
+        "Análisis individual de los 8 SRM bimástiles que sirven los pasillos. "
         "MTTR, MTBF, disponibilidad y ciclos por equipo."
     ),
 )
@@ -128,7 +128,7 @@ st.divider()
 # Fila 2 — Tabla comparativa con barra de disponibilidad
 # ---------------------------------------------------------------------------
 
-st.subheader("Tabla comparativa · 20 SRM")
+st.subheader("Tabla comparativa · 8 SRM")
 
 st.dataframe(
     tabla,

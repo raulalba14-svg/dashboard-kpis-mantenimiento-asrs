@@ -49,8 +49,8 @@ def aplicar_filtros_globales(
     Filtra las cuatro tablas según los filtros globales del sidebar.
 
     - rango_fechas: (fecha_inicio, fecha_fin) como strings 'YYYY-MM-DD'.
-    - tipos_equipo: lista de tipos a incluir ('SRM', 'STV'). None = todos.
-    - zonas: lista de zonas a incluir. None = todas.
+    - tipos_equipo: lista de tipos a incluir ('SRM'). None = todos.
+    - zonas: lista de zonas a incluir ('pasillo'). None = todas.
 
     Devuelve un nuevo dict con las tablas filtradas (no modifica el original).
     """

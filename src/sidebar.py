@@ -7,9 +7,7 @@ from src.config import FECHA_INICIO, FECHA_FIN, TIPOS_EQUIPO, ZONAS, init_sessio
 from src.theme import PRIMARIO
 
 _ZONAS_LABELS = {
-    "pasillo":         "Pasillo (SRM)",
-    "anillo_entrada":  "Anillo entrada",
-    "anillo_salida":   "Anillo salida",
+    "pasillo": "Pasillo (SRM)",
 }
 
 

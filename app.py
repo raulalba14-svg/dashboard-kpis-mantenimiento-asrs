@@ -27,8 +27,8 @@ hero(
     titulo=CLAIM,
     subtitulo=(
         "Cada incidencia del almacén se registra automáticamente en el WMS/WCS, "
-        "pero queda sin explotar. Esta herramienta transforma <b>4,84 M de misiones</b> y "
-        "<b>9.700 eventos</b> en indicadores accionables — <b>MTTR</b>, <b>MTBF</b>, "
+        "pero queda sin explotar. Esta herramienta transforma <b>413.669 misiones</b> y "
+        "<b>941 eventos</b> en indicadores accionables — <b>MTTR</b>, <b>MTBF</b>, "
         "<b>disponibilidad</b> — para anticipar fallos y priorizar mantenimientos."
     ),
 )
@@ -93,8 +93,8 @@ _intro_css = f"""
         <div class="asrs-intro__kicker">La propuesta</div>
         <div class="asrs-intro__title">Del log del WMS al cuadro de mando</div>
         <div class="asrs-intro__body">
-            Siete módulos analíticos convierten los datos crudos en una <b>vista de 30
-            segundos</b> del estado de la instalación, con detalle por equipo, zona y código
+            Varios módulos analíticos convierten los datos crudos en una <b>vista de 30
+            segundos</b> del estado de la instalación, con detalle por transelevador y código
             de error. Cada módulo incluye una lectura ejecutiva accionable.
         </div>
     </div>
@@ -110,8 +110,7 @@ with st.expander("📖 Glosario rápido — siglas y conceptos", expanded=False)
     st.markdown(
         """
         - **AS/RS** *(Automated Storage and Retrieval System)* — almacén automatizado de gran altura, sin operarios en pasillo.
-        - **SRM** *(Stacker / Storage and Retrieval Machine)* — transelevador, máquina que se desplaza por el pasillo y maneja los pallets en altura. La instalación tiene **20** (uno por pasillo).
-        - **STV** *(Shuttle Transfer Vehicle)* — vehículo de transferencia que mueve pallets en los anillos de entrada y salida. La instalación tiene **30**: 20 de cuna simple (entrada) y 10 de doble cuna (salida).
+        - **SRM** *(Stacker / Storage and Retrieval Machine)* — transelevador, máquina que se desplaza por el pasillo y maneja los pallets en altura. La instalación tiene **8** (uno por pasillo). Cada pasillo cuenta además con un transportador de entrada y otro de salida (sin KPIs propios).
         - **WMS / WCS** — *Warehouse Management System* / *Warehouse Control System*: sistemas que orquestan el almacén y registran cada incidencia.
         - **MTTR** *(Mean Time To Recovery)* — tiempo medio que un equipo permanece parado por avería. Bajar el MTTR = recuperarse antes.
         - **MTBF** *(Mean Time Between Failures)* — tiempo medio que un equipo opera entre avería y avería. Subir el MTBF = fallar menos.
@@ -137,17 +136,8 @@ _CARDS = [
      "Plano de la instalación · concentración geográfica",
      "pages/1_Fallos_por_zona_y_equipo.py", "#C0392B", "#FDECEA", "1"),
     ("nav_2", "🤖", "Rendimiento SRM",
-     "20 transelevadores · MTTR/MTBF/disponibilidad",
+     "8 transelevadores · MTTR/MTBF/disponibilidad",
      "pages/2_Rendimiento_SRM.py", "#2E86AB", "#E6F3F9", "2"),
-    ("nav_3", "🚧", "Rendimiento STV",
-     "20 STV entrada + 10 STV salida con doble cuna",
-     "pages/3_Rendimiento_STV.py", "#F18F01", "#FEF3E2", "3"),
-    ("nav_4", "⚠️", "Obstrucciones y rechazos",
-     "Distribución y tasa de rechazo del anillo",
-     "pages/4_Obstrucciones_rechazos.py", "#B7791F", "#FDF6E3", "4"),
-    ("nav_5", "📦", "Expedición / salida",
-     "Tiempos de ciclo y throughput de pallets",
-     "pages/5_Expedicion_anillo_salida.py", "#2E7D32", "#E8F5E9", "5"),
     ("nav_6", "⚖️", "Comparativa de periodos",
      "Compara dos rangos · variación de KPIs",
      "pages/6_Comparativa_periodos.py", "#6B4E9C", "#EFE9F7", "6"),
@@ -250,22 +240,11 @@ def _card_button(key: str, icono: str, titulo: str, descripcion: str, page: str)
             st.switch_page(page)
 
 
-# Layout: 3 columnas × 2 filas para los módulos 0-5 + fila final con comparativa
-col1, col2, col3 = st.columns(3, gap="medium")
-with col1:
-    _card_button(*_CARDS[0][:5])
-    _card_button(*_CARDS[3][:5])
-with col2:
-    _card_button(*_CARDS[1][:5])
-    _card_button(*_CARDS[4][:5])
-with col3:
-    _card_button(*_CARDS[2][:5])
-    _card_button(*_CARDS[5][:5])
-
-st.markdown("")
-_, col_comp, _ = st.columns([1, 2, 1], gap="medium")
-with col_comp:
-    _card_button(*_CARDS[6][:5])
+# Layout: 4 módulos en una fila de 4 columnas (0, 1, 2, comparativa)
+cols = st.columns(4, gap="medium")
+for col, card in zip(cols, _CARDS):
+    with col:
+        _card_button(*card[:5])
 
 st.markdown("")
 st.markdown(
