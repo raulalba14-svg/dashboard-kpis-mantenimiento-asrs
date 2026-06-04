@@ -76,6 +76,10 @@ def _construir_template() -> go.layout.Template:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         colorway=SECUENCIA,
+        # `fixedrange=True` por defecto: ninguna gráfica permite zoom/pan al
+        # arrastrar. Es deseable en escritorio (los datos se leen tal cual) y
+        # crítico en móvil, donde el gesto de zoom secuestraba el scroll de la
+        # página. Las funciones que necesiten zoom pueden sobrescribirlo.
         xaxis=dict(
             gridcolor="#E4E7EC",
             linecolor=GRIS_300,
@@ -85,6 +89,7 @@ def _construir_template() -> go.layout.Template:
             tickcolor=GRIS_300,
             tickfont=dict(color=GRIS_700),
             title=dict(font=dict(color=GRIS_700)),
+            fixedrange=True,
         ),
         yaxis=dict(
             gridcolor="#E4E7EC",
@@ -95,6 +100,7 @@ def _construir_template() -> go.layout.Template:
             tickcolor=GRIS_300,
             tickfont=dict(color=GRIS_700),
             title=dict(font=dict(color=GRIS_700)),
+            fixedrange=True,
         ),
         legend=dict(
             orientation="h",

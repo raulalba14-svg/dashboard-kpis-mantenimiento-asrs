@@ -16,3 +16,4 @@ PLAN_rediseño.md
 
 # Logs de arranque local de Streamlit
 streamlit_*.log
+.mobile_check/

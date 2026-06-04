@@ -166,11 +166,22 @@ details summary {
         display: none !important;
     }
 
-    /* Dejar que el scroll vertical de la página pase a través de los gráficos
-       en lugar de que Plotly capture el gesto (con fixedrange el zoom ya está
-       desactivado; esto evita además que el arrastre "secuestre" el scroll). */
+    /* === Gráficos: que el scroll de la página NUNCA quede atrapado ===
+       No necesitamos interacción interna (zoom/pan) en ninguna gráfica en
+       móvil. Plotly coloca capas transparentes de captura de gestos encima
+       del SVG (.nsewdrag, .drag, .draglayer) cuyos manejadores táctiles hacen
+       preventDefault y "secuestran" el scroll, creando recuadros de zoom al
+       deslizar el dedo. Las neutralizamos: el gesto pasa directo a la página. */
     .stPlotlyChart, .stPlotlyChart .plot-container,
-    .stPlotlyChart .svg-container {
+    .stPlotlyChart .svg-container,
+    .stPlotlyChart .main-svg {
+        touch-action: pan-y !important;
+    }
+    .stPlotlyChart .nsewdrag,
+    .stPlotlyChart .drag,
+    .stPlotlyChart .draglayer,
+    .stPlotlyChart .draglayer * {
+        pointer-events: none !important;
         touch-action: pan-y !important;
     }
 }
