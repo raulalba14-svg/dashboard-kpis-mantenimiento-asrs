@@ -692,21 +692,21 @@ def plano_almacen(
             font=dict(size=11, color=GRIS_700), xanchor="left",
         )
 
-    # `fixedrange=False` deja hacer pinch-to-zoom / arrastre en móvil, donde el
-    # sinóptico se ve pequeño y las etiquetas se acercan: el usuario amplía la
-    # zona que le interese. En escritorio se ve completo y rara vez hace falta.
+    # `fixedrange=True` evita que el gráfico capture los gestos táctiles: en
+    # móvil el scroll de la página pasa limpio a través del plano. El sinóptico
+    # ya queda legible sin zoom (IDs en vertical, sin solapes), así que no hace
+    # falta zoom táctil que dificultaría desplazarse.
     fig.update_layout(
         title=titulo,
         xaxis=dict(range=[rx_l - 1.8, rx_r + 1.8], showgrid=False,
-                   zeroline=False, showticklabels=False, fixedrange=False),
+                   zeroline=False, showticklabels=False, fixedrange=True),
         yaxis=dict(range=[leyenda_y - 0.6, y_pas_top + 1.3], showgrid=False,
-                   zeroline=False, showticklabels=False, fixedrange=False,
+                   zeroline=False, showticklabels=False, fixedrange=True,
                    scaleanchor="x", scaleratio=0.7),
         height=600,
         margin=dict(l=10, r=10, t=50, b=10),
         showlegend=False,
         plot_bgcolor="#F9FAFB",
-        dragmode="pan",
     )
     return fig
 

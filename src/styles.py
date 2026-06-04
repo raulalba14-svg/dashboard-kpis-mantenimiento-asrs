@@ -165,6 +165,14 @@ details summary {
     .stPlotlyChart .modebar {
         display: none !important;
     }
+
+    /* Dejar que el scroll vertical de la página pase a través de los gráficos
+       en lugar de que Plotly capture el gesto (con fixedrange el zoom ya está
+       desactivado; esto evita además que el arrastre "secuestre" el scroll). */
+    .stPlotlyChart, .stPlotlyChart .plot-container,
+    .stPlotlyChart .svg-container {
+        touch-action: pan-y !important;
+    }
 }
 </style>
 """
