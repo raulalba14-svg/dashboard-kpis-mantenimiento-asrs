@@ -25,11 +25,18 @@ def dataset():
 
     equipos = pd.read_csv(DATA / "equipos.csv")
     tipos_error = pd.read_csv(DATA / "tipos_error.csv")
-    misiones = pd.read_csv(DATA / "misiones.csv", parse_dates=["ts_inicio", "ts_fin"])
-    eventos = pd.read_csv(
-        DATA / "eventos_incidencia.csv",
-        parse_dates=["ts_inicio_fallo", "ts_recuperacion"],
-    )
+    misiones = pd.read_csv(DATA / "misiones.csv")
+    eventos = pd.read_csv(DATA / "eventos_incidencia.csv")
+
+    # Parseo explícito de fechas. No usamos `parse_dates=` en read_csv porque
+    # `ts_recuperacion` tiene celdas vacías (eventos en_curso): en pandas 2.x
+    # eso hace que la columna se quede como `object` (string) en lugar de
+    # datetime, y las comparaciones str <= Timestamp revientan. pandas 3.x lo
+    # toleraba, de ahí que pasara en local pero fallara en CI.
+    for col in ("ts_inicio", "ts_fin"):
+        misiones[col] = pd.to_datetime(misiones[col])
+    for col in ("ts_inicio_fallo", "ts_recuperacion"):
+        eventos[col] = pd.to_datetime(eventos[col])
     return {"equipos": equipos, "tipos_error": tipos_error,
             "misiones": misiones, "eventos": eventos}
 
