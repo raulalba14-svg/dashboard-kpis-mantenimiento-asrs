@@ -60,6 +60,18 @@ def init_session_state():
 CODIGOS_MANTENIMIENTO = {"E03"}
 
 
+# Umbrales de salud por TASA de fallos (fallos/día), no por nº absoluto. Así el
+# color del plano significa lo mismo sea cual sea el rango de fechas: un equipo
+# con 130 fallos en un año está sano; los mismos 130 en una semana, crítico.
+# Cortes por tipo de equipo (SRM falla algo más que STV por su ciclo en altura).
+# Calibrados sobre la operación normal del dataset (SRM ~0,3/día, STV ~0,23/día).
+#   (corte_verde, corte_ambar):  < verde = sano · < ambar = vigilar · ≥ ambar = crítico
+UMBRALES_TASA_FALLOS = {
+    "SRM": (0.40, 0.55),
+    "STV": (0.30, 0.42),
+}
+
+
 def rango_valido(rango) -> bool:
     """
     True si `rango` es un par (date_ini, date_fin) usable.

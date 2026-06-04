@@ -119,18 +119,21 @@ ev_srm = ev_enriq[ev_enriq["tipo"] == "SRM"].copy()
 ev_srm["pasillo_num"] = ev_srm["id_equipo"].str.extract(r"SRM-(\d+)")[0].astype(int)
 fallos_pasillos = ev_srm.groupby("pasillo_num").size().to_dict()
 
-# Mapeo STV → tramo del anillo (vía posición en el momento del fallo, Txx)
-fallos_tramos = {}
+# Mapeo STV → vehículo (fallos reales por id_equipo: STV-XX → nº fallos)
 ev_stv = ev_enriq[ev_enriq["tipo"] == "STV"].copy()
-if not ev_stv.empty:
-    ev_stv_pos = posicion_en_fallo(ev_stv, misiones).dropna(subset=["posicion_inicial"])
-    if not ev_stv_pos.empty:
-        tramo_num = ev_stv_pos["posicion_inicial"].str.extract(r"T(\d+)")[0].dropna().astype(int)
-        fallos_tramos = tramo_num.groupby(tramo_num).size().to_dict()
+ev_stv["stv_num"] = ev_stv["id_equipo"].str.extract(r"STV-(\d+)")[0]
+ev_stv = ev_stv.dropna(subset=["stv_num"])
+ev_stv["stv_num"] = ev_stv["stv_num"].astype(int)
+fallos_stv = ev_stv.groupby("stv_num").size().to_dict()
+
+# Días del periodo analizado (inclusivo) → el color es una tasa fallos/día, así
+# el semáforo significa lo mismo sea cual sea el rango de fechas seleccionado.
+dias_periodo = max((rango[1] - rango[0]).days + 1, 1)
 
 fig_plano = plano_almacen(
     fallos_pasillos=fallos_pasillos,
-    fallos_tramos=fallos_tramos,
+    fallos_stv=fallos_stv,
+    dias_periodo=dias_periodo,
     titulo="",
 )
 st.plotly_chart(fig_plano, use_container_width=True,
@@ -138,9 +141,11 @@ st.plotly_chart(fig_plano, use_container_width=True,
 
 st.caption(
     "**Lectura:** en el centro, cada pasillo representa un transelevador (SRM); "
-    "alrededor, el anillo único de STV dividido en tramos. Cuanto más oscuro el "
-    "color, mayor concentración de fallos en el periodo — las zonas en rojo son "
-    "las que deben recibir atención prioritaria."
+    "alrededor, el anillo único con los 15 vehículos de transferencia (STV), cada "
+    "uno con su nº de fallos en el periodo. El color es un **semáforo de salud** "
+    "según la **tasa de fallos por día** (no el total): verde = dentro de lo "
+    "normal, ámbar = vigilar, rojo = por encima del umbral. Al acortar el rango "
+    "de fechas, un equipo con fallos concentrados se vuelve ámbar o rojo."
 )
 
 st.divider()

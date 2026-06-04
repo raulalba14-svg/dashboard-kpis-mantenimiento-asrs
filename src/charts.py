@@ -461,149 +461,235 @@ def histograma_distribucion(
 
 def plano_almacen(
     fallos_pasillos: dict[int, int],
-    fallos_tramos: dict[int, int] | None = None,
+    fallos_stv: dict[int, int] | None = None,
     n_pasillos: int = 8,
-    n_tramos: int = 24,
+    n_stv: int = 15,
+    dias_periodo: float = 365.0,
     titulo: str = "Plano de la instalación — concentración de fallos",
 ) -> go.Figure:
     """
-    Plano esquemático del almacén AS/RS.
+    Sinóptico esquemático del almacén AS/RS.
 
-    8 pasillos en paralelo, cada uno servido por su transelevador (SRM-XX),
-    rodeados por un anillo único de vehículos de transferencia (STV) que
-    alimenta y evacúa las cabeceras de los pasillos. El color de cada pasillo
-    codifica la intensidad de fallos del SRM; el de cada tramo del anillo, la
-    de los STV que pasan por él.
+    8 pasillos en paralelo arriba, cada uno servido por su transelevador
+    (SRM-XX), apoyados sobre un anillo único cerrado (circuito rectangular de
+    esquinas redondeadas) situado debajo, que alimenta las cabeceras de los
+    pasillos. Sobre el recorrido del anillo se distribuyen los 15 vehículos de
+    transferencia (STV-XX) como cajas con su ID y nº de fallos.
+
+    El color de cada equipo es un SEMÁFORO DE SALUD basado en su TASA de fallos
+    (fallos/día), no en el nº absoluto ni en "el peor del grupo". Así significa
+    lo mismo sea cual sea el rango de fechas: 130 fallos/año = sano (verde);
+    los mismos 130 en una semana = crítico (rojo). Los cortes por tipo de
+    equipo están en config.UMBRALES_TASA_FALLOS.
 
     Parámetros:
-        fallos_pasillos: {pasillo (1..n_pasillos): n_fallos}
-        fallos_tramos:   {tramo   (1..n_tramos):   n_fallos}  (anillo STV)
+        fallos_pasillos: {pasillo (1..n_pasillos): n_fallos}  → SRM-XX
+        fallos_stv:      {stv     (1..n_stv):      n_fallos}  → STV-XX
+        dias_periodo:    nº de días del rango analizado (para la tasa fallos/día)
     """
-    fallos_tramos = fallos_tramos or {}
+    from src.config import UMBRALES_TASA_FALLOS
+
+    fallos_stv = fallos_stv or {}
     fig = go.Figure()
+    dias = max(float(dias_periodo), 1.0)
 
-    vmax_p = max(fallos_pasillos.values()) if fallos_pasillos else 1
-    vmax_t = max(fallos_tramos.values()) if fallos_tramos else 1
-
-    def _color(v: int, vmax: int) -> str:
-        if vmax == 0:
+    def _color(v: int, tipo: str) -> str:
+        """Color-semáforo según la tasa de fallos/día frente a los umbrales
+        absolutos del tipo de equipo. Verde = sano · ámbar = vigilar ·
+        rojo = fuera de umbral. Sin fallos → azul muy claro (neutro)."""
+        if v <= 0:
             return "#EAF2F9"
-        ratio = v / vmax
-        if ratio < 0.33:
-            return "#A8C8E0"
-        elif ratio < 0.66:
-            return PRIMARIO_CLARO
-        elif ratio < 0.85:
+        verde, ambar = UMBRALES_TASA_FALLOS.get(tipo, (0.40, 0.55))
+        tasa = v / dias
+        if tasa < verde:
+            return EXITO
+        elif tasa < ambar:
             return ADVERTENCIA
         else:
             return CRITICO
 
+    # Texto en blanco sobre fondos oscuros (verde/rojo), gris sobre los claros.
+    _TXT_OSCURO = {EXITO, CRITICO}
+    def _txt_color(fill: str) -> str:
+        return "white" if fill in _TXT_OSCURO else GRIS_900
+
     paso = 1.4          # separación horizontal entre pasillos
     x0_base = 1.0
-    y_pas_bot, y_pas_top = 3.2, 9.6
-
     ancho_pasillos = n_pasillos * paso
-    x_ring_left = x0_base - 0.7
-    x_ring_right = x0_base + ancho_pasillos - 0.1
-    y_ring_top = y_pas_top + 0.9
-    y_ring_bot = y_pas_bot - 0.9
+    xc_total = x0_base + ancho_pasillos / 2 - 0.3
 
-    # ----- Pasillos SRM (rejilla central) -----
+    # ----- Pasillos SRM (fila superior, apoyados sobre el anillo) -----
+    y_pas_top = 9.8
+    y_pas_bot = 4.8          # base de los pasillos = borde superior del anillo
+    yc_pas = (y_pas_top + y_pas_bot) / 2
     for p in range(1, n_pasillos + 1):
         v = fallos_pasillos.get(p, 0)
         x0 = x0_base + (p - 1) * paso
         x1 = x0 + 1.0
         xc = (x0 + x1) / 2
 
+        fill = _color(v, "SRM")
         fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_pas_bot, y1=y_pas_top,
-                      line=dict(color="white", width=1.5), fillcolor=_color(v, vmax_p))
+                      line=dict(color="white", width=1.5), fillcolor=fill)
         fig.add_annotation(
-            x=xc, y=(y_pas_top + y_pas_bot) / 2,
+            x=xc, y=yc_pas,
             text=f"SRM-{p:02d}<br><b>{v}</b>",
             showarrow=False,
-            font=dict(size=11, color="white" if v >= vmax_p * 0.5 else GRIS_900),
+            font=dict(size=11, color=_txt_color(fill)),
         )
         fig.add_trace(go.Scatter(
-            x=[xc], y=[(y_pas_top + y_pas_bot) / 2],
+            x=[xc], y=[yc_pas],
             mode="markers", marker=dict(opacity=0, size=30),
             showlegend=False,
             hovertemplate=f"<b>Pasillo P{p:02d} · SRM-{p:02d}</b><br>{v:,} fallos<extra></extra>",
         ))
 
-    # ----- Anillo único de STV (recorrido rectangular alrededor) -----
-    # Reparte los n_tramos a lo largo del perímetro: banda superior + inferior.
-    n_arriba = (n_tramos + 1) // 2
-    n_abajo = n_tramos - n_arriba
-    span = x_ring_right - x_ring_left
+    # ----- Anillo único cerrado (circuito rectangular redondeado, abajo) -----
+    # El borde superior coincide con la base de los pasillos (y_pas_bot): el
+    # anillo alimenta las cabeceras. Los STV se reparten por todo el perímetro.
+    rx_l = x0_base - 0.8                       # extremo izquierdo del circuito
+    rx_r = x0_base + ancho_pasillos - 0.2      # extremo derecho
+    ry_top = y_pas_bot                         # borde superior = base pasillos
+    ry_bot = -1.6                              # borde inferior (alto para los STV)
+    r_cor = 0.9                                # radio de las esquinas
 
-    def _tramo_rect(tnum, x0, x1, y0, y1):
-        v = fallos_tramos.get(tnum, 0)
-        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
-                      line=dict(color="white", width=1),
-                      fillcolor=_color(v, vmax_t))
+    def _circuito(xl, xr, yb, yt, rc, n=260):
+        """Perímetro de un rectángulo de esquinas redondeadas (sentido horario
+        desde el centro del lado superior)."""
+        # Tramos rectos + 4 cuartos de círculo. Devuelve (x, y) cerrados.
+        cx_tl, cy_tl = xl + rc, yt - rc
+        cx_tr, cy_tr = xr - rc, yt - rc
+        cx_br, cy_br = xr - rc, yb + rc
+        cx_bl, cy_bl = xl + rc, yb + rc
+        nq = n // 4
+        a_tr = np.linspace(np.pi / 2, 0, nq)
+        a_br = np.linspace(0, -np.pi / 2, nq)
+        a_bl = np.linspace(-np.pi / 2, -np.pi, nq)
+        a_tl = np.linspace(np.pi, np.pi / 2, nq)
+        xs = np.concatenate([
+            [cx_tl, cx_tr], cx_tr + rc * np.cos(a_tr),
+            [xr, xr], cx_br + rc * np.cos(a_br),
+            [cx_br, cx_bl], cx_bl + rc * np.cos(a_bl),
+            [xl, xl], cx_tl + rc * np.cos(a_tl),
+        ])
+        ys = np.concatenate([
+            [yt, yt], cy_tr + rc * np.sin(a_tr),
+            [cy_tr, cy_br], cy_br + rc * np.sin(a_br),
+            [yb, yb], cy_bl + rc * np.sin(a_bl),
+            [cy_bl, cy_tl], cy_tl + rc * np.sin(a_tl),
+        ])
+        return xs, ys
+
+    x_ring, y_ring = _circuito(rx_l, rx_r, ry_bot, ry_top, r_cor)
+    # Pista: dos trazos para dar sensación de carril doble.
+    for w, col in ((12, "#CBD5E1"), (6, "#F9FAFB")):
         fig.add_trace(go.Scatter(
-            x=[(x0 + x1) / 2], y=[(y0 + y1) / 2],
-            mode="markers", marker=dict(opacity=0, size=18),
-            showlegend=False,
-            hovertemplate=f"<b>Anillo · T{tnum:02d}</b><br>{v:,} fallos<extra></extra>",
+            x=x_ring, y=y_ring, mode="lines",
+            line=dict(color=col, width=w, shape="spline"),
+            hoverinfo="skip", showlegend=False,
         ))
 
-    w_arr = span / n_arriba
-    for i in range(n_arriba):
-        _tramo_rect(i + 1, x_ring_left + i * w_arr, x_ring_left + (i + 1) * w_arr,
-                    y_ring_top, y_ring_top + 0.5)
-    w_ab = span / max(n_abajo, 1)
-    for j in range(n_abajo):
-        _tramo_rect(n_arriba + j + 1, x_ring_left + j * w_ab, x_ring_left + (j + 1) * w_ab,
-                    y_ring_bot - 0.5, y_ring_bot)
-    # Laterales del anillo (visual, sin tramo numerado)
-    for xx in (x_ring_left, x_ring_right):
-        fig.add_shape(type="rect", x0=xx - 0.18, x1=xx + 0.18,
-                      y0=y_ring_bot - 0.5, y1=y_ring_top + 0.5,
-                      line=dict(color="white", width=1), fillcolor="#A8C8E0", opacity=0.6)
+    # ----- 15 STV como cajas sobre el recorrido del circuito -----
+    # Se reparten por los tres lados accesibles (el superior lo ocupan los
+    # pasillos): bajando por la izquierda, a lo largo del lado inferior y
+    # subiendo por la derecha. Calculamos centros explícitos para que queden
+    # equiespaciados y sin solaparse.
+    bw, bh = 0.6, 0.5        # media-anchura / media-altura de la caja STV
+    x_left = rx_l            # carril izquierdo
+    x_right = rx_r           # carril derecho
+    y_low = ry_bot           # carril inferior
+    # Repartimos por los tres lados accesibles. Los laterales son cortos, así
+    # que ponemos menos ahí (4) y el grueso en el lado inferior (7): 4+7+4=15.
+    n_izq = 4
+    n_der = 4
+    n_inf = n_stv - n_izq - n_der
 
-    xc_total = (x_ring_left + x_ring_right) / 2
+    # Cada centro lleva también el lado al que pertenece ("izq"/"inf"/"der"),
+    # para colocar la etiqueta del ID fuera de la caja, sobre el fondo claro.
+    centros = []
+    # Lado izquierdo (de arriba hacia abajo), sin tocar las esquinas extremas.
+    ys_izq = np.linspace(ry_top - r_cor - 0.3, ry_bot + r_cor + 0.3, n_izq)
+    for yy in ys_izq:
+        centros.append((x_left, yy, "izq"))
+    # Lado inferior (izquierda → derecha), entre las dos esquinas.
+    xs_inf = np.linspace(rx_l + r_cor + 0.4, rx_r - r_cor - 0.4, n_inf)
+    for xx in xs_inf:
+        centros.append((xx, y_low, "inf"))
+    # Lado derecho (de abajo hacia arriba).
+    ys_der = np.linspace(ry_bot + r_cor + 0.3, ry_top - r_cor - 0.3, n_der)
+    for yy in ys_der:
+        centros.append((x_right, yy, "der"))
 
-    fig.add_annotation(x=xc_total, y=y_ring_top + 0.95,
-                       text=f"<b>Anillo de STV · {n_tramos} tramos</b>",
-                       showarrow=False, font=dict(size=11, color=GRIS_700))
-    fig.add_annotation(x=xc_total, y=(y_pas_top + y_pas_bot) / 2 + 3.9,
+    for i in range(n_stv):
+        s = i + 1
+        v = fallos_stv.get(s, 0)
+        col = _color(v, "STV")
+        cx, cy, lado = centros[i]
+        fig.add_shape(type="rect",
+                      x0=cx - bw, x1=cx + bw, y0=cy - bh, y1=cy + bh,
+                      line=dict(color="white", width=1.5), fillcolor=col)
+        # Dentro de la caja: solo el nº de fallos, grande y en negrita.
+        fig.add_annotation(
+            x=cx, y=cy, text=f"<b>{v}</b>",
+            showarrow=False,
+            font=dict(size=13, color=_txt_color(col)),
+        )
+        # Fuera de la caja: el ID, en gris sobre el fondo claro (alto contraste).
+        if lado == "izq":
+            lx, ly, xa, ya = cx - bw - 0.18, cy, "right", "middle"
+        elif lado == "der":
+            lx, ly, xa, ya = cx + bw + 0.18, cy, "left", "middle"
+        else:  # inferior → etiqueta debajo
+            lx, ly, xa, ya = cx, cy - bh - 0.16, "center", "top"
+        fig.add_annotation(
+            x=lx, y=ly, text=f"STV-{s:02d}",
+            showarrow=False, xanchor=xa, yanchor=ya,
+            font=dict(size=10.5, color=GRIS_700),
+        )
+        fig.add_trace(go.Scatter(
+            x=[cx], y=[cy], mode="markers", marker=dict(opacity=0, size=24),
+            showlegend=False,
+            hovertemplate=f"<b>STV-{s:02d}</b><br>{v:,} fallos<extra></extra>",
+        ))
+
+    # ----- Rótulos -----
+    fig.add_annotation(x=xc_total, y=y_pas_top + 0.6,
                        text=f"<b>{n_pasillos} pasillos · 1 transelevador por pasillo · 16 alturas</b>",
                        showarrow=False, font=dict(size=12, color=GRIS_700))
-    fig.add_annotation(x=xc_total, y=y_ring_bot - 0.9,
-                       text="<b>Anillo único: entradas y salidas a los pasillos</b>",
+    fig.add_annotation(x=xc_total, y=(ry_top + ry_bot) / 2,
+                       text=f"<b>Anillo único de STV · {n_stv} vehículos</b>",
                        showarrow=False, font=dict(size=11, color=GRIS_500))
 
-    # Leyenda manual (colorbar discreta)
-    leyenda_y = y_ring_bot - 1.9
-    leyenda_items = [("Bajo", "#A8C8E0"),
-                     ("Medio", PRIMARIO_CLARO),
-                     ("Alto", ADVERTENCIA),
+    # ----- Leyenda manual (semáforo de salud por tasa de fallos/día) -----
+    leyenda_y = ry_bot - 2.0
+    leyenda_items = [("Sano", EXITO),
+                     ("Vigilar", ADVERTENCIA),
                      ("Crítico", CRITICO)]
-    lx0 = xc_total - 2.4
+    paso_ley = 2.4
+    lx0 = xc_total - (len(leyenda_items) * paso_ley) / 2 + 0.3
     for i, (etq, col) in enumerate(leyenda_items):
         fig.add_shape(
             type="rect",
-            x0=lx0 + i * 1.3, x1=lx0 + 0.2 + i * 1.3,
+            x0=lx0 + i * paso_ley, x1=lx0 + 0.32 + i * paso_ley,
             y0=leyenda_y, y1=leyenda_y + 0.35,
             line=dict(color="white", width=0),
             fillcolor=col,
         )
         fig.add_annotation(
-            x=lx0 + 0.3 + i * 1.3, y=leyenda_y + 0.18,
+            x=lx0 + 0.45 + i * paso_ley, y=leyenda_y + 0.18,
             text=etq, showarrow=False,
             font=dict(size=11, color=GRIS_700), xanchor="left",
         )
 
     fig.update_layout(
         title=titulo,
-        xaxis=dict(range=[x_ring_left - 0.6, x_ring_right + 0.6], showgrid=False,
+        xaxis=dict(range=[rx_l - 1.0, rx_r + 1.0], showgrid=False,
                    zeroline=False, showticklabels=False, fixedrange=True),
-        yaxis=dict(range=[leyenda_y - 0.6, y_ring_top + 1.6], showgrid=False,
+        yaxis=dict(range=[leyenda_y - 0.6, y_pas_top + 1.3], showgrid=False,
                    zeroline=False, showticklabels=False, fixedrange=True,
                    scaleanchor="x", scaleratio=0.7),
-        height=520,
-        margin=dict(l=10, r=10, t=60, b=10),
+        height=600,
+        margin=dict(l=10, r=10, t=50, b=10),
         showlegend=False,
         plot_bgcolor="#F9FAFB",
     )
