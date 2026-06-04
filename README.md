@@ -8,7 +8,7 @@
 
 ![CI](https://github.com/raulalba14-svg/dashboard-kpis-mantenimiento-asrs/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![Streamlit](https://img.shields.io/badge/streamlit-1.36+-FF4B4B.svg)
+![Streamlit](https://img.shields.io/badge/streamlit-1.40+-FF4B4B.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)
 ![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC.svg)
 
