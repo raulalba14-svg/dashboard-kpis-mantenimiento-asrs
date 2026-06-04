@@ -567,25 +567,27 @@ def plano_almacen(
         a_bl = np.linspace(-np.pi / 2, -np.pi, nq)
         a_tl = np.linspace(np.pi, np.pi / 2, nq)
         xs = np.concatenate([
-            [cx_tl, cx_tr], cx_tr + rc * np.cos(a_tr),
-            [xr, xr], cx_br + rc * np.cos(a_br),
-            [cx_br, cx_bl], cx_bl + rc * np.cos(a_bl),
-            [xl, xl], cx_tl + rc * np.cos(a_tl),
-        ])
+            np.array([cx_tl, cx_tr]), cx_tr + rc * np.cos(a_tr),
+            np.array([xr, xr]), cx_br + rc * np.cos(a_br),
+            np.array([cx_br, cx_bl]), cx_bl + rc * np.cos(a_bl),
+            np.array([xl, xl]), cx_tl + rc * np.cos(a_tl),
+        ]).astype(float)
         ys = np.concatenate([
-            [yt, yt], cy_tr + rc * np.sin(a_tr),
-            [cy_tr, cy_br], cy_br + rc * np.sin(a_br),
-            [yb, yb], cy_bl + rc * np.sin(a_bl),
-            [cy_bl, cy_tl], cy_tl + rc * np.sin(a_tl),
-        ])
+            np.array([yt, yt]), cy_tr + rc * np.sin(a_tr),
+            np.array([cy_tr, cy_br]), cy_br + rc * np.sin(a_br),
+            np.array([yb, yb]), cy_bl + rc * np.sin(a_bl),
+            np.array([cy_bl, cy_tl]), cy_tl + rc * np.sin(a_tl),
+        ]).astype(float)
         return xs, ys
 
     x_ring, y_ring = _circuito(rx_l, rx_r, ry_bot, ry_top, r_cor)
-    # Pista: dos trazos para dar sensación de carril doble.
+    # Pista: dos trazos para dar sensación de carril doble. Las esquinas ya van
+    # redondeadas por geometría, así que no usamos shape="spline" (su soporte
+    # varía entre versiones de Plotly y rompía el render en Streamlit Cloud).
     for w, col in ((12, "#CBD5E1"), (6, "#F9FAFB")):
         fig.add_trace(go.Scatter(
-            x=x_ring, y=y_ring, mode="lines",
-            line=dict(color=col, width=w, shape="spline"),
+            x=x_ring.tolist(), y=y_ring.tolist(), mode="lines",
+            line=dict(color=col, width=w),
             hoverinfo="skip", showlegend=False,
         ))
 

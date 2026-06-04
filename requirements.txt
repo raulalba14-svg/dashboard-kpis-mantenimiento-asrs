@@ -1,8 +1,11 @@
-# Runtime de la app (lo que Streamlit Cloud necesita para arrancar)
-streamlit>=1.35.0
-pandas>=2.2.0
-plotly>=5.22.0
-numpy>=1.26.0
+# Runtime de la app (lo que Streamlit Cloud necesita para arrancar).
+# Cotas con mínimos modernos: con `plotly>=5.22` Cloud instalaba una versión
+# antigua de Plotly que rompía el render del sinóptico (shape="spline").
+# Fijamos un suelo en Plotly 6 y un techo en pandas 3 (aún muy reciente).
+streamlit>=1.40,<2
+pandas>=2.2,<3
+plotly>=6.0,<7
+numpy>=1.26,<3
 
 # Desarrollo / CI (no es necesario en Streamlit Cloud, pero es inofensivo)
 pytest>=8.2.0
