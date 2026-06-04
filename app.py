@@ -230,6 +230,17 @@ div[data-testid="stButton"] > button:hover::after {
     opacity: 1;
     transform: translateX(5px);
 }
+/* Móvil: tarjetas más compactas y número de fondo más discreto */
+@media (max-width: 640px) {
+    div[data-testid="stButton"] > button {
+        min-height: 96px !important;
+        padding: 16px 18px 30px 18px !important;
+    }
+    div[data-testid="stButton"] > button::before {
+        font-size: 2.4rem !important;
+        right: 14px !important;
+    }
+}
 </style>
 """
 

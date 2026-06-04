@@ -127,6 +127,45 @@ details summary {
 .stPlotlyChart {
     border-radius: 10px;
 }
+
+/* ===================================================================== */
+/* RESPONSIVE — móvil (<= 640px)                                         */
+/* Streamlit no apila st.columns() en pantallas estrechas: las mantiene  */
+/* lado a lado encogiéndolas hasta volverlas ilegibles. Forzamos el wrap */
+/* del contenedor horizontal para que cada columna pase a ancho completo.*/
+/* ===================================================================== */
+@media (max-width: 640px) {
+    /* Aprovechar todo el ancho del viewport */
+    .block-container {
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+        padding-top: 1rem !important;
+    }
+
+    /* Apilar cualquier fila de columnas (st.columns) en vertical */
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Métricas y títulos un punto más compactos */
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important;
+    }
+    h1 { font-size: 1.6rem !important; }
+    h2 { font-size: 1.3rem !important; }
+
+    /* La barra de herramientas de Plotly estorba en táctil; ya la ocultamos
+       por configuración, pero reforzamos por si alguna queda visible. */
+    .stPlotlyChart .modebar {
+        display: none !important;
+    }
+}
 </style>
 """
 

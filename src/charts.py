@@ -531,11 +531,20 @@ def plano_almacen(
         fill = _color(v, "SRM")
         fig.add_shape(type="rect", x0=x0, x1=x1, y0=y_pas_bot, y1=y_pas_top,
                       line=dict(color="white", width=1.5), fillcolor=fill)
+        # ID en vertical (la caja del pasillo es alta y estrecha): así nunca se
+        # solapa con el pasillo vecino aunque el plano se escale a un móvil.
         fig.add_annotation(
-            x=xc, y=yc_pas,
-            text=f"SRM-{p:02d}<br><b>{v}</b>",
+            x=xc, y=y_pas_top - 0.55,
+            text=f"SRM-{p:02d}", textangle=-90,
+            showarrow=False, yanchor="top",
+            font=dict(size=10.5, color=_txt_color(fill)),
+        )
+        # Nº de fallos grande y horizontal, centrado en la caja.
+        fig.add_annotation(
+            x=xc, y=yc_pas - 0.6,
+            text=f"<b>{v}</b>",
             showarrow=False,
-            font=dict(size=11, color=_txt_color(fill)),
+            font=dict(size=13, color=_txt_color(fill)),
         )
         fig.add_trace(go.Scatter(
             x=[xc], y=[yc_pas],
@@ -683,17 +692,21 @@ def plano_almacen(
             font=dict(size=11, color=GRIS_700), xanchor="left",
         )
 
+    # `fixedrange=False` deja hacer pinch-to-zoom / arrastre en móvil, donde el
+    # sinóptico se ve pequeño y las etiquetas se acercan: el usuario amplía la
+    # zona que le interese. En escritorio se ve completo y rara vez hace falta.
     fig.update_layout(
         title=titulo,
-        xaxis=dict(range=[rx_l - 1.0, rx_r + 1.0], showgrid=False,
-                   zeroline=False, showticklabels=False, fixedrange=True),
+        xaxis=dict(range=[rx_l - 1.8, rx_r + 1.8], showgrid=False,
+                   zeroline=False, showticklabels=False, fixedrange=False),
         yaxis=dict(range=[leyenda_y - 0.6, y_pas_top + 1.3], showgrid=False,
-                   zeroline=False, showticklabels=False, fixedrange=True,
+                   zeroline=False, showticklabels=False, fixedrange=False,
                    scaleanchor="x", scaleratio=0.7),
         height=600,
         margin=dict(l=10, r=10, t=50, b=10),
         showlegend=False,
         plot_bgcolor="#F9FAFB",
+        dragmode="pan",
     )
     return fig
 

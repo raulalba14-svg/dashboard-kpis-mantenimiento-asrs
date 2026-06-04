@@ -136,8 +136,19 @@ fig_plano = plano_almacen(
     dias_periodo=dias_periodo,
     titulo="",
 )
-st.plotly_chart(fig_plano, use_container_width=True,
-                config={"displayModeBar": False})
+st.plotly_chart(
+    fig_plano, use_container_width=True,
+    config={
+        # En móvil el sinóptico se ve pequeño: dejamos pinch-to-zoom y arrastre
+        # para que el usuario amplíe la zona que quiera leer.
+        "scrollZoom": True,
+        "displayModeBar": "hover",
+        "displaylogo": False,
+        "modeBarButtonsToRemove": [
+            "select2d", "lasso2d", "autoScale2d", "toggleSpikelines",
+        ],
+    },
+)
 
 st.caption(
     "**Lectura:** en el centro, cada pasillo representa un transelevador (SRM); "
