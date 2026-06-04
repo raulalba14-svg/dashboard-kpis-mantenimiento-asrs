@@ -1,106 +1,165 @@
-# Análisis de datos operacionales AS/RS
+# Del log del WMS a la decisión de mantenimiento
 
-> Del log del WMS a la decisión de mantenimiento.
+> Dashboard de KPIs de mantenimiento para almacenes automáticos (AS/RS).
+> Convierte los registros crudos de un WMS/WCS en MTTR, MTBF, disponibilidad
+> y patrones de fallo accionables a nivel de equipo, zona y celda.
 
-Dashboard de mantenimiento para un almacén automatizado de 8 pasillos (un transelevador SRM por pasillo) servidos por un anillo único de 15 vehículos de transferencia (STV). Convierte los registros crudos del WMS/WCS en MTTR, MTBF, disponibilidad y patrones de fallo, accionables a nivel de equipo, zona y celda. Opera sobre datos simulados que replican el esquema de un WMS/WCS.
+[![🟢 Demo en vivo](https://img.shields.io/badge/demo-en%20vivo-2ea44f?style=for-the-badge)](https://dashboard-kpis-mantenimiento-asrs-ep8nttdf9imwcwvdnhhzpx.streamlit.app)
 
+![CI](https://github.com/raulalba14-svg/dashboard-kpis-mantenimiento-asrs/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.36+-FF4B4B.svg)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)
+![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC.svg)
+
+## ▶ Pruébalo ahora
+
+**[Abrir la demo en vivo →](https://dashboard-kpis-mantenimiento-asrs-ep8nttdf9imwcwvdnhhzpx.streamlit.app)**
+
+No requiere instalación. La app está desplegada en Streamlit Cloud y opera sobre
+un dataset sintético de ~1 año de operación.
+
+---
+
+## El problema que resuelve
+
+Un almacén automático genera miles de registros al día en su WMS/WCS: misiones,
+tiempos, códigos de error, paradas. Esos datos existen, pero rara vez se traducen
+en **decisiones de mantenimiento**: ¿qué transelevador para más?, ¿qué código de
+error concentra las averías?, ¿la carga de trabajo predice los fallos?, ¿voy mejor
+o peor que el semestre pasado?
+
+Este dashboard cierra ese hueco. Toma el log crudo y lo convierte en los KPIs que
+un equipo de mantenimiento usa para **priorizar**: MTTR, MTBF, disponibilidad y
+patrones de fallo, desglosados por equipo, por zona y por celda — con una "lectura
+ejecutiva" en cada pantalla que dice, en una frase, qué mirar primero.
+
+> Está construido por alguien que ha estado al otro lado: vengo de mantenimiento
+> electromecánico industrial y me he reconvertido a datos y desarrollo. Sé qué KPIs
+> importan de verdad en planta porque he sido quien los necesitaba — no son métricas
+> elegidas desde fuera, son las que de verdad ordenan una ventana de mantenimiento.
 
 ---
 
 ## Capturas
 
-> Para generar las capturas: arranca la app (`streamlit run app.py`) y guarda los PNG en `assets/screenshots/` con los nombres indicados.
-
 | | |
 |---|---|
-| ![Resumen](assets/screenshots/00_resumen.png) | ![Fallos por zona](assets/screenshots/01_fallos.png) |
-| **Módulo 0** · Resumen general | **Módulo 1** · Fallos por zona |
-| ![Rendimiento SRM](assets/screenshots/02_srm.png) | ![Comparativa](assets/screenshots/04_comparativa.png) |
-| **Módulo 2** · Rendimiento SRM | **Módulo 4** · Comparativa de periodos |
+| ![Resumen general](assets/screenshots/00_resumen.png) | ![Plano de fallos](assets/screenshots/01_fallos.png) |
+| **Resumen general** — disponibilidad de toda la instalación de un vistazo, evolución mensual y los 5 equipos que peor van. | **Mapa de fallos** — sinóptico de la instalación con semáforo de salud: detecta al instante qué equipo está en rojo. |
+| ![Rendimiento SRM](assets/screenshots/02_srm.png) | ![Comparativa de periodos](assets/screenshots/04_comparativa.png) |
+| **Rendimiento por equipo** — MTTR/MTBF/disponibilidad por transelevador y la relación entre carga de trabajo y averías. | **Comparativa de periodos** — A vs B con variación de cada KPI: ¿voy mejor o peor que antes? |
 
 ---
 
-## Módulos
+## Qué KPIs calcula
 
-| # | Módulo | Qué hace |
-|---|---|---|
-| 0 | Resumen general | KPIs globales, evolución mensual, top 5 peor disponibilidad |
-| 1 | Fallos por pasillo | Plano de la instalación (pasillos + anillo STV), rankings, heatmap del alzado |
-| 2 | Rendimiento SRM | 8 transelevadores · MTTR/MTBF/disponibilidad/ciclos por equipo |
-| 3 | Rendimiento STV | 15 vehículos del anillo único · MTTR/MTBF/disponibilidad/ciclos por equipo |
-| 4 | Comparativa de periodos | A vs B, variación de KPIs, equipos con mayor regresión |
-| 5 | Acerca del proyecto | Contexto, autoría, roadmap |
+Todos los indicadores se calculan a partir del log, por equipo y agregados, y son
+descargables en CSV desde la propia app:
 
-Cada módulo expone los datasets que calcula como descarga CSV (formato Excel ES).
+- **MTTR** (Mean Time To Repair) — tiempo medio de reparación, por equipo y global.
+- **MTBF** (Mean Time Between Failures) — tiempo medio entre fallos.
+- **Disponibilidad** — % de tiempo operativo frente al objetivo de servicio.
+- **Disponibilidad mensual** — serie temporal para ver tendencia y estacionalidad.
+- **Ciclos / tiempo de ciclo** — carga real de trabajo de cada equipo.
+- **Patrón de fallos** — concentración por zona, por código de error y posición
+  en el alzado (heatmap de celda).
+- **Variación entre periodos** — delta de cada KPI entre dos rangos de fechas.
 
 ---
 
-## Requisitos
+## Las pantallas y qué pregunta responde cada una
 
-- Python 3.11+
-- Las dependencias están en `requirements.txt`
+| Módulo | Responde a… |
+|---|---|
+| **Resumen general** | ¿Cómo va la instalación en conjunto y qué equipos arrastran el dato? |
+| **Fallos por zona y equipo** | ¿Dónde se concentran las averías? ¿Qué código de error domina? |
+| **Rendimiento SRM** | ¿Cómo está cada transelevador? ¿La carga explica sus fallos? |
+| **Rendimiento STV** | ¿Cómo está el anillo de vehículos? ¿Hay uno que frene al resto? |
+| **Comparativa de periodos** | ¿Voy mejor o peor que antes? ¿Qué equipos han regresado? |
+| **Acerca del proyecto** | Contexto, alcance del dataset y roadmap. |
+
+---
+
+## Stack y arquitectura
+
+**Streamlit · pandas · Plotly**, sobre una arquitectura limpia pensada para que el
+día de mañana se enchufe a datos reales sin reescribir la lógica:
 
 ```
+I/O (carga/filtrado)  ↔  cálculo (funciones puras)  ↔  presentación (charts/UI)
+```
+
+- **Capa de cálculo pura** ([src/kpis.py](src/kpis.py)) — sin Streamlit, sin estado,
+  sin efectos colaterales. Recibe DataFrames, devuelve DataFrames. Es lo que está
+  cubierto por tests y lo que sobreviviría a un cambio de origen de datos.
+- **Capa de I/O** ([src/data_loader.py](src/data_loader.py)) — carga y filtrado
+  aislados del resto.
+- **Capa de presentación** ([src/charts.py](src/charts.py), [pages/](pages/)) — los
+  helpers de Plotly devuelven figuras, no pintan; cada módulo es un archivo.
+- **Tests con pytest** ([tests/](tests/)) — cubren los KPIs y la coherencia del dataset.
+- **CI con GitHub Actions** ([.github/workflows/tests.yml](.github/workflows/tests.yml)) —
+  los tests corren en cada push.
+- **Docker** — imagen reproducible que genera el dataset en el build.
+- **Desplegado** en Streamlit Cloud.
+
+---
+
+## Sobre los datos (importante)
+
+El dataset es **100% sintético** y se genera por código ([scripts/generar_datos.py](scripts/generar_datos.py)).
+La topología está **despersonalizada a propósito** — una configuración genérica de
+**8 pasillos con un transelevador (SRM) cada uno** servidos por un **anillo único de
+vehículos de transferencia (STV)** — que reproduce el *esquema* de un WMS/WCS real
+sin contener ningún dato, instalación, marca ni cliente reales. El generador
+correlaciona los fallos con la carga de misiones para que los KPIs sean realistas.
+
+---
+
+## Ejecutar en local
+
+<details>
+<summary>Instrucciones de instalación y ejecución</summary>
+
+Requiere **Python 3.11+**.
+
+```bash
+# 1. Dependencias
 pip install -r requirements.txt
-```
 
-## Generar los datos simulados
-
-```
+# 2. Generar el dataset sintético (semilla fija → reproducible)
 python scripts/generar_datos.py --semilla 42 --salida data/
-```
 
-Esto crea cuatro ficheros CSV en `data/`:
+# 3. Arrancar la app
+streamlit run app.py        # http://localhost:8501
 
-- `equipos.csv` — inventario de los 23 equipos (8 SRM + 15 STV del anillo)
-- `tipos_error.csv` — catálogo de códigos de error
-- `misiones.csv` — ~1 año de misiones (2025-01-01 a 2025-12-31, ~0,94 M filas)
-- `eventos_incidencia.csv` — fallos correlacionados con la carga de misiones
-
-## Ejecutar la aplicación
-
-```
-streamlit run app.py
-```
-
-## Ejecutar los tests
-
-```
+# 4. Tests
 pytest tests/ -v
 ```
 
-## Ejecutar con Docker
+**Con Docker** (genera el dataset en el build, no necesitas Python local):
 
-La imagen genera el dataset durante el build, así que no necesitas instalar Python ni dependencias localmente:
-
-```
+```bash
 docker build -t analisis-asrs .
-docker run -p 8501:8501 analisis-asrs
+docker run -p 8501:8501 analisis-asrs   # http://localhost:8501
 ```
 
-Luego abre [http://localhost:8501](http://localhost:8501).
+</details>
 
-## Estructura del proyecto
-
-```
-scripts/generar_datos.py   Generador de datos simulados (independiente de la app)
-src/config.py              Constantes globales
-src/data_loader.py         Carga y filtrado de datos (I/O puro)
-src/kpis.py                Cálculo de KPIs: MTTR, MTBF, disponibilidad, ciclos
-src/charts.py              Helpers de plotly (devuelven figuras, no pintan)
-src/export.py              Botones de descarga CSV reutilizables
-src/insights.py            Lecturas ejecutivas por módulo
-src/sidebar.py             Filtros globales compartidos
-src/theme.py · styles.py   Tema corporativo y CSS inyectado
-app.py                     Entry point de Streamlit con filtros globales
-pages/                     Un archivo por módulo analítico
-tests/                     Tests unitarios de kpis.py y coherencia del dataset
-```
+---
 
 ## Roadmap
 
-- Migración a datos reales del WMS/WCS manteniendo el mismo esquema y la misma capa de cálculo.
-- Despliegue como webapp persistente conectada a base de datos (Next.js + base de datos gestionada).
-- Integración con la herramienta Grafana de monitorización en tiempo real ya en marcha en la instalación.
+- Conexión a datos reales del WMS/WCS reutilizando la misma capa de cálculo.
+- Despliegue como webapp persistente sobre base de datos gestionada.
+
+---
+
+## Sobre mí
+
+**Raúl Alba Cabello** — electromecánico de mantenimiento industrial reconvertido a
+datos y desarrollo. Mi nicho es la intersección de **mantenimiento + KPIs en
+almacenes automáticos (AS/RS)**: conozco la planta y los datos, y este proyecto es
+mi forma de demostrar que ambos lados se hablan.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Raúl%20Alba%20Cabello-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ra%C3%BAl-alba-cabello-17784575)
