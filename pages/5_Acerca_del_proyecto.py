@@ -104,7 +104,7 @@ st.divider()
 st.markdown(f"<h3 style='color:{PRIMARIO};'>Esquema de datos</h3>", unsafe_allow_html=True)
 st.markdown(
     f"<div style='color:{GRIS_700};margin-bottom:1rem;'>"
-    "El modelo de datos replica el esquema del WMS/WCS real. La migración "
+    "El modelo de datos replica el esquema típico de un WMS/WCS. La migración "
     "futura a datos reales no requeriría reescribir la lógica de análisis."
     "</div>",
     unsafe_allow_html=True,
@@ -221,12 +221,12 @@ st.markdown(f"<h3 style='color:{PRIMARIO};'>Roadmap</h3>", unsafe_allow_html=Tru
 col_r1, col_r2, col_r3 = st.columns(3)
 _roadmap = [
     ("Datos reales",
-     "Conexión a la base de datos del WMS/WCS de producción manteniendo el "
+     "Conexión a una base de datos del WMS/WCS manteniendo el "
      "mismo esquema y la misma capa de cálculo.",
      PRIMARIO),
     ("Integración Grafana",
-     "Coexistencia con el sistema de monitorización en tiempo real ya en "
-     "marcha en la instalación, ofreciendo la vista analítica complementaria.",
+     "Integración con sistemas de monitorización en tiempo real, ofreciendo "
+     "una vista analítica complementaria.",
      PRIMARIO_CLARO),
     ("Despliegue webapp",
      "Migración a una arquitectura persistente (p. ej. Next.js + base de "
@@ -262,9 +262,9 @@ st.markdown(
 <div style="background:#F2F4F7;border-radius:10px;padding:14px 18px;
             color:{GRIS_700};font-size:0.88rem;line-height:1.55;margin-top:1rem;">
     {badge("Demo · datos simulados", "neutral")}
-    &nbsp;&nbsp;Por confidencialidad, la herramienta opera sobre datos sintéticos
-    que reproducen fielmente el esquema, los rangos y los patrones de la
-    instalación real. La lógica de análisis es idéntica a la que se aplicaría
+    &nbsp;&nbsp;La herramienta opera sobre datos sintéticos
+    que reproducen el esquema, los rangos y los patrones típicos de un almacén
+    automático AS/RS. La lógica de análisis es idéntica a la que se aplicaría
     sobre datos reales.
 </div>
 """,
