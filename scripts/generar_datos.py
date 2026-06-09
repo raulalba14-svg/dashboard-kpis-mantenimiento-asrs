@@ -237,15 +237,22 @@ def generar_eventos(
         meses_fallo = pd.DatetimeIndex(ts_fallos).month
         en_curso = (meses_fallo >= 11) & (rng.random(n_fallos) < 0.05)
 
-        ts_rec_final = np.where(en_curso, pd.NaT, ts_rec)
         estados = np.where(en_curso, "en_curso", "resuelto")
+
+        # ts_recuperacion como columna datetime real: los en_curso son NaT.
+        # NO usar np.where(en_curso, pd.NaT, ts_rec): numpy degrada el array
+        # datetime64 a int64 (nanosegundos crudos), y al volcarlo a CSV salen
+        # enteros de 19 dígitos en vez de fechas, que luego revientan al
+        # parsear con OutOfBoundsDatetime.
+        ts_rec_final = pd.Series(pd.to_datetime(ts_rec))
+        ts_rec_final[en_curso] = pd.NaT
 
         df = pd.DataFrame({
             "id_evento":      np.arange(id_evento, id_evento + n_fallos),
             "id_equipo":      eid,
             "codigo_error":   codigos,
             "ts_inicio_fallo":ts_fallos,
-            "ts_recuperacion":ts_rec_final,
+            "ts_recuperacion":ts_rec_final.values,
             "estado":         estados,
         })
         partes.append(df)
