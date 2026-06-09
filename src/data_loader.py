@@ -28,20 +28,58 @@ _GENERADOR = ROOT_DIR / "scripts" / "generar_datos.py"
 
 
 def datos_disponibles() -> bool:
-    """True si los 4 CSV requeridos existen en disco."""
-    return all(
+    """True si los 4 CSV requeridos existen y son válidos (fechas parseables)."""
+    if not all(
         p.exists()
         for p in (EQUIPOS_CSV, TIPOS_ERROR_CSV, MISIONES_CSV, EVENTOS_CSV)
-    )
+    ):
+        return False
+    return _csv_eventos_valido()
+
+
+def _csv_eventos_valido() -> bool:
+    """
+    True si eventos_incidencia.csv tiene fechas parseables en ts_recuperacion.
+
+    Defensa ante un dataset corrupto persistido (p. ej. Streamlit Cloud, que
+    conserva el `data/` generado entre reinicios): un generador antiguo escribía
+    ts_recuperacion como enteros nanosegundo, que al parsear lanzan
+    OutOfBoundsDatetime. Si detectamos eso, tratamos el dataset como no
+    disponible para forzar su regeneración con el generador actual.
+    """
+    try:
+        # Leer igual que cargar_tablas (parse_dates) y exigir que la columna
+        # quede como datetime. Un CSV con enteros nanosegundo se lee como
+        # numérico (no datetime) o revienta con OutOfBoundsDatetime: en ambos
+        # casos lo tratamos como corrupto.
+        muestra = pd.read_csv(
+            EVENTOS_CSV, usecols=["ts_recuperacion"],
+            nrows=2000, parse_dates=["ts_recuperacion"],
+        )
+        return pd.api.types.is_datetime64_any_dtype(muestra["ts_recuperacion"])
+    except Exception:
+        return False
+
+
+def _generar() -> None:
+    """Ejecuta el generador de datos por ruta de fichero (scripts/ no es paquete)."""
+    spec = importlib.util.spec_from_file_location("generar_datos", _GENERADOR)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"No se pudo cargar el generador en {_GENERADOR}")
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    gen.generar_dataset(DATA_DIR, semilla=SEMILLA_DATASET)
 
 
 def asegurar_datos() -> bool:
     """
-    Garantiza que los 4 CSV existen, generándolos si faltan.
+    Garantiza que los 4 CSV existen y son válidos, regenerándolos si faltan
+    o si están corruptos.
 
     Devuelve True si tuvo que generarlos (primer arranque en un entorno limpio,
-    p. ej. Streamlit Cloud, donde `data/` está en .gitignore), False si ya
-    estaban. La generación usa la semilla fija → cifras idénticas siempre.
+    p. ej. Streamlit Cloud, donde `data/` está en .gitignore; o un dataset
+    previo corrupto), False si ya estaban y eran válidos. La generación usa la
+    semilla fija → cifras idénticas siempre.
 
     No depende de Streamlit a propósito: este módulo es I/O puro. El feedback
     visual (spinner) se aplica desde la capa que sí conoce Streamlit.
@@ -49,15 +87,7 @@ def asegurar_datos() -> bool:
     if datos_disponibles():
         return False
 
-    # `scripts/` no es un paquete importable; lo cargamos por ruta de fichero
-    # para reutilizar `generar_dataset` sin duplicar la lógica de generación.
-    spec = importlib.util.spec_from_file_location("generar_datos", _GENERADOR)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"No se pudo cargar el generador en {_GENERADOR}")
-    gen = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(gen)
-
-    gen.generar_dataset(DATA_DIR, semilla=SEMILLA_DATASET)
+    _generar()
     return True
 
 
