@@ -15,7 +15,7 @@ from src.charts import (
 )
 from src.theme import aplicar_tema, PRIMARIO, GRIS_700, EXITO, ADVERTENCIA, CRITICO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
-from src.config import UNIDAD_TIEMPO, init_session_state, rango_valido
+from src.config import UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import rendimiento_stv
@@ -64,7 +64,9 @@ misiones    = f["misiones"]
 equipos     = f["equipos"]
 tipos_error = f["tipos_error"]
 
-rango_tuple = (str(rango[0]), str(rango[1]))
+# Calendario de los KPIs: [inicio, fin + 1 día), coherente con el filtro de
+# fechas (que incluye el día final completo).
+rango_tuple = rango_calendario(rango)
 unidad_label = "min" if UNIDAD_TIEMPO == "minutos" else "h"
 
 if eventos.empty and misiones.empty:

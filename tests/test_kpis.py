@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 
+from src.config import rango_calendario
 from src.kpis import (
     delta_vs_periodo_anterior,
     disponibilidad_mensual,
@@ -359,6 +360,25 @@ class TestKpisGlobales:
         assert resultado["n_fallos"] == 0
         assert resultado["ciclos_totales"] == 0
 
+    def test_disponibilidad_media_incluye_equipos_sin_fallos(self):
+        """Los equipos sin fallos cuentan como 100 %, como en los módulos 2 y 3."""
+        ev = pd.DataFrame([
+            _evento(1, "EQ-A", "E01", "2025-01-01 00:00", "2025-01-03 00:00"),  # 48 h
+        ])
+        mis = pd.DataFrame([
+            _mision(1, "EQ-A", "2025-01-01 08:00", "2025-01-01 08:02"),
+        ])
+        eq = pd.DataFrame([
+            {"id": "EQ-A", "tipo": "SRM", "zona": "pasillo",
+             "estado_operativo": "operativo"},
+            {"id": "EQ-B", "tipo": "SRM", "zona": "pasillo",
+             "estado_operativo": "operativo"},
+        ])
+        rango = ("2025-01-01 00:00", "2025-01-05 00:00")  # 96 h
+        resultado = kpis_globales(ev, mis, eq, rango)
+        # EQ-A: 48/96 caído → 50 % · EQ-B sin fallos → 100 % · media = 75 %
+        assert abs(resultado["disponibilidad_media"] - 75.0) < 0.01
+
     def test_n_fallos_incluye_en_curso(self, eventos_con_en_curso):
         """n_fallos cuenta TODOS los eventos (incl. en_curso) para ser coherente con MTBF."""
         mis = pd.DataFrame([
@@ -405,6 +425,55 @@ class TestDeltaVsPeriodoAnterior:
                                           misiones_global=mis_global)
         assert delta["delta_n_fallos"] == 0  # 1 vs 1
         assert delta["delta_ciclos"] == 0
+
+    def test_delta_ciclos_none_sin_misiones_global(self):
+        """Sin misiones_global no hay ciclos del periodo anterior que contar:
+        el delta debe ser None, no el total del periodo actual inflado."""
+        ev_global = pd.DataFrame([
+            _evento(1, "EQ-A", "E01", "2025-05-15 08:00", "2025-05-15 10:00"),
+            _evento(2, "EQ-A", "E02", "2025-06-10 08:00", "2025-06-10 09:00"),
+        ])
+        ev_act = ev_global[ev_global["ts_inicio_fallo"] >= "2025-06-01"]
+        mis_act = pd.DataFrame([
+            _mision(1, "EQ-A", "2025-06-10 08:00", "2025-06-10 08:02"),
+        ])
+        rango = ("2025-06-01", "2025-06-30")
+        delta = delta_vs_periodo_anterior(ev_act, mis_act, rango,
+                                          eventos_global=ev_global)
+        assert delta["delta_ciclos"] is None
+        assert delta["delta_n_fallos"] == 0
+
+
+class TestRangoCalendario:
+    def test_incluye_el_dia_final_completo(self):
+        """El filtro incluye el día final entero → el calendario debe sumarlo."""
+        ini, fin = rango_calendario(("2025-06-01", "2025-06-30"))
+        assert (fin - ini) == pd.Timedelta(days=30)
+
+    def test_un_solo_dia_tiene_calendario_de_24h(self):
+        ini, fin = rango_calendario(("2025-06-10", "2025-06-10"))
+        assert (fin - ini) == pd.Timedelta(days=1)
+
+    def test_disponibilidad_de_un_dia(self):
+        """6 h de fallo en un rango de un día → 75 %, no división por cero."""
+        ev = pd.DataFrame([
+            _evento(1, "EQ-A", "E01", "2025-06-10 00:00", "2025-06-10 06:00"),
+        ])
+        disp = disponibilidad_por_equipo(
+            ev, rango_calendario(("2025-06-10", "2025-06-10"))
+        )
+        assert abs(disp["EQ-A"] - 75.0) < 0.01
+
+
+class TestCalendarioDegenerado:
+    def test_calendario_cero_devuelve_series_vacias(self):
+        """Duración cero (mismo timestamp) → series vacías, nunca ±inf."""
+        ev = pd.DataFrame([
+            _evento(1, "EQ-A", "E01", "2025-06-10 00:00", "2025-06-10 06:00"),
+        ])
+        rango = ("2025-06-10", "2025-06-10")
+        assert disponibilidad_por_equipo(ev, rango).empty
+        assert mtbf_por_equipo(ev, rango).empty
 
 
 class TestEdgeCases:

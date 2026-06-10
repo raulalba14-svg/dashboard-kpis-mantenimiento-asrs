@@ -52,12 +52,16 @@ def mtbf_por_equipo(
     tiempo_operativo = tiempo_calendario - Σ duracion_fallo_i
     MTBF(equipo) = tiempo_operativo / nº fallos
 
-    rango: (ts_inicio, ts_fin) del periodo analizado.
+    rango: (ts_inicio, ts_fin) del periodo analizado. Si procede del filtro de
+    fechas del sidebar (días inclusive), convertir antes con
+    `config.rango_calendario` para incluir el día final completo.
     unidad: 'minutos' | 'horas'
-    Devuelve Series indexada por id_equipo.
+    Devuelve Series indexada por id_equipo (vacía si el calendario es <= 0).
     """
     ts_ini, ts_fin = pd.Timestamp(rango[0]), pd.Timestamp(rango[1])
     t_cal_h = (ts_fin - ts_ini).total_seconds() / 3600.0
+    if t_cal_h <= 0:
+        return pd.Series(dtype=float, name="mtbf")
 
     ev = eventos.copy()
     ev["ts_inicio_fallo"]  = pd.to_datetime(ev["ts_inicio_fallo"])
@@ -93,10 +97,14 @@ def disponibilidad_por_equipo(
     Disponibilidad(equipo) = tiempo_operativo / tiempo_total_del_periodo  (en %)
 
     Equivalente a MTBF / (MTBF + MTTR).
-    Devuelve Series indexada por id_equipo (valores 0–100).
+    rango: ver nota de `mtbf_por_equipo` sobre `config.rango_calendario`.
+    Devuelve Series indexada por id_equipo (valores 0–100; vacía si el
+    calendario es <= 0).
     """
     ts_ini, ts_fin = pd.Timestamp(rango[0]), pd.Timestamp(rango[1])
     t_cal_s = (ts_fin - ts_ini).total_seconds()
+    if t_cal_s <= 0:
+        return pd.Series(dtype=float, name="disponibilidad")
 
     ev = eventos.copy()
     ev["ts_inicio_fallo"] = pd.to_datetime(ev["ts_inicio_fallo"])
@@ -323,21 +331,25 @@ def delta_vs_periodo_anterior(
     de la misma duración.
 
     Para que tenga sentido, `eventos_global`/`misiones_global` deben venir SIN
-    filtrar por rango (pero pueden estar filtrados por tipo/zona). Si no se
-    pasan, se usan `eventos`/`misiones` y el resultado puede ser nulo.
+    filtrar por rango (pero pueden estar filtrados por tipo/zona). Sin
+    `misiones_global`, `delta_ciclos` es None: las misiones del periodo actual
+    no contienen el periodo anterior y el delta saldría inflado (= total del
+    periodo).
 
     Devuelve un dict con:
         delta_disponibilidad (pp)
         delta_n_fallos       (entero)
         delta_mttr_min       (float)
-        delta_ciclos         (entero)
+        delta_ciclos         (entero | None)
     """
+    nulo = {"delta_disponibilidad": None, "delta_n_fallos": None,
+            "delta_mttr_min": None, "delta_ciclos": None}
+
     ts_ini = pd.Timestamp(rango[0])
     ts_fin = pd.Timestamp(rango[1])
     duracion = ts_fin - ts_ini
     if duracion.total_seconds() <= 0:
-        return {"delta_disponibilidad": None, "delta_n_fallos": None,
-                "delta_mttr_min": None, "delta_ciclos": None}
+        return nulo
 
     ts_ini_prev = ts_ini - duracion
     ts_fin_prev = ts_ini
@@ -355,26 +367,25 @@ def delta_vs_periodo_anterior(
     ]
 
     if ev_prev.empty and mis_prev.empty:
-        return {"delta_disponibilidad": None, "delta_n_fallos": None,
-                "delta_mttr_min": None, "delta_ciclos": None}
+        return nulo
 
-    # Disponibilidad
-    rango_prev = (str(ts_ini_prev.date()), str(ts_fin_prev.date()))
-    rango_act  = (str(ts_ini.date()), str(ts_fin.date()))
-    disp_prev = disponibilidad_por_equipo(ev_prev, rango_prev).mean() if not ev_prev.empty else 100.0
-    disp_act  = disponibilidad_por_equipo(eventos, rango_act).mean() if not eventos.empty else 100.0
+    disp_prev = disponibilidad_por_equipo(ev_prev, (ts_ini_prev, ts_fin_prev)).mean() if not ev_prev.empty else 100.0
+    disp_act  = disponibilidad_por_equipo(eventos, (ts_ini, ts_fin)).mean() if not eventos.empty else 100.0
 
     mttr_prev = mttr_por_equipo(ev_prev).mean() if not ev_prev.empty else 0.0
     mttr_act  = mttr_por_equipo(eventos).mean() if not eventos.empty else 0.0
 
-    ciclos_prev = int((mis_prev["estado"] == "completada").sum())
-    ciclos_act  = int((misiones["estado"] == "completada").sum())
+    if misiones_global is not None and not mis_prev.empty:
+        delta_ciclos = int((misiones["estado"] == "completada").sum()
+                           - (mis_prev["estado"] == "completada").sum())
+    else:
+        delta_ciclos = None
 
     return {
         "delta_disponibilidad": float(disp_act - disp_prev),
         "delta_n_fallos":       int(len(eventos) - len(ev_prev)),
         "delta_mttr_min":       float(mttr_act - mttr_prev),
-        "delta_ciclos":         int(ciclos_act - ciclos_prev),
+        "delta_ciclos":         delta_ciclos,
     }
 
 
@@ -389,7 +400,11 @@ def kpis_globales(
     Devuelve dict con los KPIs resumen de toda la instalación:
         disponibilidad_media, n_fallos, mttr_medio, mtbf_medio, ciclos_totales
     """
-    disp   = disponibilidad_por_equipo(eventos, rango)
+    disp = disponibilidad_por_equipo(eventos, rango)
+    # Media sobre todo el parque filtrado: los equipos sin fallos en el periodo
+    # cuentan como 100 %, igual que en las tablas de los módulos 2 y 3.
+    if equipos is not None and not equipos.empty:
+        disp = disp.reindex(equipos["id"]).fillna(100.0)
     mttr   = mttr_por_equipo(eventos, unidad)
     mtbf   = mtbf_por_equipo(eventos, rango, unidad)
     ciclos = ciclos_por_equipo(misiones, equipos)

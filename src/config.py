@@ -87,6 +87,19 @@ def rango_valido(rango) -> bool:
     )
 
 
+def rango_calendario(rango) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Convierte el par (date_ini, date_fin) del filtro — ambos días inclusive —
+    en los timestamps de calendario que esperan los KPIs: [inicio, fin + 1 día).
+
+    Coherente con `aplicar_filtros_globales`, que incluye el día final completo.
+    Sin el +1 día, el calendario quedaría un día corto respecto a los eventos
+    filtrados y un rango de un solo día tendría duración cero (disponibilidad
+    y MTBF divididos por cero).
+    """
+    return (pd.Timestamp(rango[0]), pd.Timestamp(rango[1]) + pd.Timedelta(days=1))
+
+
 # Paletas de colores reexportadas desde src/theme.py para evitar duplicación.
 # El tema corporativo es la única fuente de verdad cromática.
 from src.theme import COLOR_CATEGORIA, COLOR_SEVERIDAD  # noqa: E402  (al final del módulo)

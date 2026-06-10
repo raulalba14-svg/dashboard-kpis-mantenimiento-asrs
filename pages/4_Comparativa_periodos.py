@@ -15,6 +15,7 @@ from src.theme import (
 from src.styles import inyectar_css, hero
 from src.config import (
     UNIDAD_TIEMPO, FECHA_INICIO, FECHA_FIN, init_session_state,
+    rango_calendario,
 )
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
@@ -116,8 +117,10 @@ fb = aplicar_filtros_globales(
     tipos_equipo=tipos_equipo, zonas=zonas,
 )
 
-rango_a_tuple = (str(rango_a[0]), str(rango_a[1]))
-rango_b_tuple = (str(rango_b[0]), str(rango_b[1]))
+# Calendario de los KPIs: [inicio, fin + 1 día), coherente con el filtro de
+# fechas (que incluye el día final completo). Permite comparar rangos de 1 día.
+rango_a_tuple = rango_calendario(rango_a)
+rango_b_tuple = rango_calendario(rango_b)
 unidad_label = "min" if UNIDAD_TIEMPO == "minutos" else "h"
 
 kpis_a = kpis_globales(fa["eventos"], fa["misiones"], fa["equipos"],

@@ -18,7 +18,7 @@ from src.theme import (
     GRIS_500, GRIS_700,
 )
 from src.styles import inyectar_css, hero, lectura_ejecutiva
-from src.config import UNIDAD_TIEMPO, init_session_state, rango_valido
+from src.config import UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import resumen_general
@@ -62,13 +62,12 @@ hero(
 _cargar = st.cache_data(cargar_tablas_con_feedback)
 tablas = _cargar()
 
-# Eventos globales (sin rango) para calcular el delta vs. periodo anterior.
-# No usamos las misiones globales (4,8 M filas) por rendimiento: el delta de
-# ciclos se calcula directamente con counts del periodo y un derivado.
-f_global_eventos = aplicar_filtros_globales(
+# Tablas globales (sin filtrar por rango) para el delta vs. periodo anterior:
+# eventos para disponibilidad/MTTR/fallos y misiones para los ciclos.
+f_global = aplicar_filtros_globales(
     tablas, rango_fechas=None,
     tipos_equipo=tipos_equipo, zonas=zonas,
-)["eventos"]
+)
 
 f = aplicar_filtros_globales(
     tablas,
@@ -83,7 +82,9 @@ if eventos.empty and misiones.empty:
     st.warning("No hay datos para el periodo y los filtros seleccionados.")
     st.stop()
 
-rango_tuple = (str(rango[0]), str(rango[1]))
+# Calendario de los KPIs: [inicio, fin + 1 día), coherente con el filtro de
+# fechas (que incluye el día final completo).
+rango_tuple = rango_calendario(rango)
 unidad_label = "min" if UNIDAD_TIEMPO == "minutos" else "h"
 
 # ---------------------------------------------------------------------------
@@ -93,8 +94,8 @@ unidad_label = "min" if UNIDAD_TIEMPO == "minutos" else "h"
 kpis = kpis_globales(eventos, misiones, equipos, rango_tuple, UNIDAD_TIEMPO)
 delta = delta_vs_periodo_anterior(
     eventos, misiones, rango_tuple,
-    eventos_global=f_global_eventos,
-    misiones_global=None,  # omitimos misiones globales por rendimiento (4,8M filas)
+    eventos_global=f_global["eventos"],
+    misiones_global=f_global["misiones"],
 )
 
 lectura_ejecutiva(resumen_general(eventos, misiones, equipos, rango_tuple))

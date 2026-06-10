@@ -45,6 +45,10 @@ def resumen_general(
         return _vacio()
 
     disp = disponibilidad_por_equipo(eventos, rango)
+    # Media sobre todo el parque (equipos sin fallos = 100 %), coherente con
+    # las tarjetas KPI de los módulos.
+    if not equipos.empty:
+        disp = disp.reindex(equipos["id"]).fillna(100.0)
     disp_media = float(disp.mean()) if len(disp) else 100.0
     sobre_objetivo = disp_media >= _OBJETIVO_DISP
     comparativo = "por encima" if sobre_objetivo else "por debajo"
@@ -130,6 +134,7 @@ def rendimiento_srm(
         return "Los <b>8 SRM</b> no han registrado incidencias en el periodo filtrado."
 
     disp = disponibilidad_por_equipo(ev_srm, rango)
+    disp = disp.reindex(sorted(srm_ids)).fillna(100.0)  # flota completa, sin fallos = 100 %
     disp_media = float(disp.mean()) if len(disp) else 100.0
 
     ciclos = ciclos_por_equipo(mis_srm)
@@ -190,6 +195,7 @@ def rendimiento_stv(
         return f"Los <b>{len(stv_ids)} STV</b> del anillo no han registrado incidencias en el periodo filtrado."
 
     disp = disponibilidad_por_equipo(ev_stv, rango)
+    disp = disp.reindex(sorted(stv_ids)).fillna(100.0)  # flota completa, sin fallos = 100 %
     disp_media = float(disp.mean()) if len(disp) else 100.0
     peor = disp.idxmin() if len(disp) else None
     peor_valor = float(disp.min()) if len(disp) else 100.0
