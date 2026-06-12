@@ -15,6 +15,11 @@ ANO_DATASET = 2025
 FECHA_INICIO = f"{ANO_DATASET}-01-01"
 FECHA_FIN = f"{ANO_DATASET}-12-31"
 
+# Rango por defecto al abrir la app: los últimos N días del dataset.
+# Un periodo corto hace visible el semáforo del plano (con el año completo
+# la tasa fallos/día se promedia y todo sale verde).
+DIAS_RANGO_DEFECTO = 14
+
 # Equipos — 8 pasillos en paralelo (un transelevador por pasillo) y un anillo
 # único de vehículos de transferencia (STV) que alimenta y evacúa los pasillos.
 N_SRM = 8
@@ -45,10 +50,12 @@ def init_session_state():
     """
     import streamlit as st
     if "rango_fechas" not in st.session_state:
-        st.session_state["rango_fechas"] = (
-            pd.Timestamp(FECHA_INICIO).date(),
-            pd.Timestamp(FECHA_FIN).date(),
+        fecha_fin = pd.Timestamp(FECHA_FIN)
+        fecha_ini = max(
+            pd.Timestamp(FECHA_INICIO),
+            fecha_fin - pd.Timedelta(days=DIAS_RANGO_DEFECTO - 1),
         )
+        st.session_state["rango_fechas"] = (fecha_ini.date(), fecha_fin.date())
     if "tipos_equipo" not in st.session_state:
         st.session_state["tipos_equipo"] = TIPOS_EQUIPO[:]
     if "zonas" not in st.session_state:
