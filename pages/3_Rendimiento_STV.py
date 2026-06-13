@@ -21,6 +21,7 @@ from src.branding import FAVICON, pie_pagina
 from src.insights import rendimiento_stv
 from src.export import panel_exportacion
 from src.format import fmt_es
+from src.estilos_tabla import estilo_disponibilidad
 
 st.set_page_config(
     page_title="Rendimiento STV",
@@ -135,24 +136,29 @@ st.divider()
 
 st.subheader("Tabla comparativa · 15 STV")
 
-st.dataframe(
-    tabla,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "id_equipo":      st.column_config.TextColumn("Equipo"),
-        "disponibilidad": st.column_config.ProgressColumn(
-            "Disponibilidad",
-            format="%.2f %%",
-            min_value=80.0,
-            max_value=100.0,
-        ),
-        "mttr": st.column_config.NumberColumn(f"MTTR ({unidad_label})", format="%.1f"),
-        "mtbf": st.column_config.NumberColumn(f"MTBF ({unidad_label})", format="%.0f"),
-        "ciclos":   st.column_config.NumberColumn("Ciclos", format="%d"),
-        "n_fallos": st.column_config.NumberColumn("Fallos", format="%d"),
-    },
+# Tabla con Styler para mostrar los números en formato español (coma decimal,
+# punto de miles). La disponibilidad lleva fondo-semáforo por umbral en lugar
+# de barra de progreso, porque st.dataframe formatea las ProgressColumn en
+# inglés y no admite fmt_es.
+_nombres = {
+    "id_equipo": "Equipo", "disponibilidad": "Disponibilidad",
+    "mttr": f"MTTR ({unidad_label})", "mtbf": f"MTBF ({unidad_label})",
+    "ciclos": "Ciclos", "n_fallos": "Fallos",
+}
+_styler = (
+    tabla.rename(columns=_nombres)
+    .style
+    .map(estilo_disponibilidad, subset=["Disponibilidad"])
+    .format({
+        "Disponibilidad": lambda v: f"{fmt_es(v, 2)} %",
+        f"MTTR ({unidad_label})": lambda v: fmt_es(v, 1),
+        f"MTBF ({unidad_label})": lambda v: fmt_es(v, 0),
+        "Ciclos": lambda v: fmt_es(v, 0),
+        "Fallos": lambda v: fmt_es(v, 0),
+    }, na_rep="—")
 )
+
+st.dataframe(_styler, use_container_width=True, hide_index=True)
 
 st.divider()
 
