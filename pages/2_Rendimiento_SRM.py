@@ -7,11 +7,11 @@ from src.data_loader import aplicar_filtros_globales
 from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import (
     mttr_por_equipo, mtbf_por_equipo, disponibilidad_por_equipo,
-    disponibilidad_mensual, ciclos_por_equipo,
+    disponibilidad_mensual, ciclos_por_equipo, posicion_en_fallo,
 )
 from src.charts import (
     barras_ranking_umbrales, serie_anual_area, scatter_ciclos_fallos,
-    kpi_card_html,
+    kpi_card_html, heatmap_alzado_pasillo,
 )
 from src.theme import aplicar_tema, PRIMARIO, GRIS_700, EXITO, ADVERTENCIA, CRITICO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
@@ -208,7 +208,106 @@ with cs:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Fila 4 — Detalle individual
+# Fila 4 — Mapa de calor del alzado de un pasillo (celda exacta Pxx-Ayy-Czz)
+# ---------------------------------------------------------------------------
+
+st.subheader("Mapa de calor · alzado del pasillo")
+
+# Cruce de cada fallo con la misión activa para situar la celda física (P-A-C).
+ev_pos = posicion_en_fallo(eventos, misiones)
+ev_pos_validos = ev_pos.dropna(subset=["posicion_inicial"])
+srm_pos = ev_pos_validos[
+    ev_pos_validos["posicion_inicial"].str.startswith("P", na=False)
+].copy()
+
+if srm_pos.empty:
+    st.info("Sin fallos SRM con posición identificada en el periodo.")
+else:
+    srm_pos["pasillo"] = (srm_pos["posicion_inicial"]
+                          .str.extract(r"P(\d+)")[0]
+                          .astype(str).str.zfill(2).apply(lambda x: f"P{x}"))
+    srm_pos["altura"]  = (srm_pos["posicion_inicial"]
+                          .str.extract(r"A(\d+)")[0]
+                          .astype(str).str.zfill(2).apply(lambda x: f"A{x}"))
+    srm_pos["columna"] = (srm_pos["posicion_inicial"]
+                          .str.extract(r"C(\d+)")[0]
+                          .astype(str).str.zfill(2).apply(lambda x: f"C{x}"))
+
+    # Pasillo más conflictivo por defecto.
+    fallos_por_pasillo = (srm_pos.groupby("pasillo").size()
+                          .sort_values(ascending=False))
+    pasillos_disponibles = [f"P{i:02d}" for i in range(1, 9)]
+    pasillo_top = (fallos_por_pasillo.index[0]
+                   if len(fallos_por_pasillo) else "P01")
+
+    c_sel, c_info = st.columns([1, 3])
+    with c_sel:
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stSelectbox"] input { caret-color: transparent; }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        pasillo_sel = st.selectbox(
+            "Pasillo",
+            options=pasillos_disponibles,
+            index=pasillos_disponibles.index(pasillo_top),
+            key="m2_pasillo_alzado_sel",
+        )
+    with c_info:
+        n_pasillo = int(fallos_por_pasillo.get(pasillo_sel, 0))
+        st.markdown(
+            f"<div style='padding-top:1.8rem;color:{GRIS_700};font-size:0.92rem;'>"
+            f"Vista de alzado (columna × altura). Cada celda es una ubicación "
+            f"física exacta. Pasillo seleccionado: <b>{pasillo_sel}</b> · "
+            f"<b>{fmt_es(n_pasillo, 0)}</b> fallos en el periodo."
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    fig_alzado = heatmap_alzado_pasillo(srm_pos, pasillo=pasillo_sel)
+    st.plotly_chart(fig_alzado, use_container_width=True,
+                    config={"displayModeBar": False})
+
+    # Top celdas de toda la instalación (los 8 pasillos)
+    top_celdas = (
+        srm_pos.groupby("posicion_inicial").size()
+               .rename("n_fallos")
+               .sort_values(ascending=False)
+               .head(10)
+               .reset_index()
+               .rename(columns={"posicion_inicial": "Celda"})
+    )
+    ct, cv = st.columns([2, 3])
+    with ct:
+        st.markdown("**Top 10 celdas · todos los pasillos**")
+        st.dataframe(
+            top_celdas,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Celda": st.column_config.TextColumn("Celda"),
+                "n_fallos": st.column_config.ProgressColumn(
+                    "Nº fallos",
+                    format="%d",
+                    min_value=0,
+                    max_value=int(top_celdas["n_fallos"].max()),
+                ),
+            },
+        )
+
+    st.caption(
+        f"{fmt_es(len(ev_pos_validos), 0)} de {fmt_es(len(ev_pos), 0)} fallos con "
+        f"misión activa identificada "
+        f"({fmt_es(100 * len(ev_pos_validos) / max(len(ev_pos), 1), 0)}%)."
+    )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Fila 5 — Detalle individual
 # ---------------------------------------------------------------------------
 
 with st.expander("🔍 Detalle individual de un SRM", expanded=False):
