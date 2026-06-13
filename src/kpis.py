@@ -167,6 +167,34 @@ def tiempo_ciclo(
 
 
 # ---------------------------------------------------------------------------
+# Tasa de rechazo  (Módulo 4 — Obstrucciones y rechazos)
+# ---------------------------------------------------------------------------
+
+def tasa_rechazo(
+    misiones: pd.DataFrame,
+    agrupar_por: str | None = None,
+) -> float | pd.Series:
+    """
+    tasa_rechazo = nº rechazos / nº misiones totales
+
+    agrupar_por: columna de misiones por la que agrupar (p.ej. 'id_equipo',
+                 'posicion_inicial'). None → escalar global.
+    """
+    if agrupar_por is None:
+        if len(misiones) == 0:
+            return 0.0
+        return (misiones["estado"] == "rechazada").sum() / len(misiones)
+
+    rechazos = (
+        misiones[misiones["estado"] == "rechazada"]
+        .groupby(agrupar_por)
+        .size()
+    )
+    total = misiones.groupby(agrupar_por).size()
+    return (rechazos / total).fillna(0).rename("tasa_rechazo")
+
+
+# ---------------------------------------------------------------------------
 # Posición en el momento del fallo  (sección 6)
 # ---------------------------------------------------------------------------
 

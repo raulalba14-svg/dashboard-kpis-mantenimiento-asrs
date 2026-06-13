@@ -14,6 +14,7 @@ from src.kpis import (
     mttr_por_equipo,
     posicion_en_fallo,
     serie_mensual,
+    tasa_rechazo,
     tiempo_ciclo,
 )
 
@@ -506,3 +507,32 @@ class TestEdgeCases:
         # Enero está dentro del rango y sin eventos en él → 100 %
         if 1 in s.index:
             assert abs(s[1] - 100.0) < 0.01
+
+
+# ---------------------------------------------------------------------------
+# Tasa de rechazo
+# ---------------------------------------------------------------------------
+
+class TestTasaRechazo:
+    def test_escalar_global(self):
+        mis = pd.DataFrame({"estado": [
+            "completada", "completada", "rechazada", "abortada", "rechazada",
+        ]})
+        assert tasa_rechazo(mis) == pytest.approx(2 / 5)
+
+    def test_sin_misiones_es_cero(self):
+        mis = pd.DataFrame({"estado": []})
+        assert tasa_rechazo(mis) == 0.0
+
+    def test_sin_rechazos_es_cero(self):
+        mis = pd.DataFrame({"estado": ["completada", "abortada"]})
+        assert tasa_rechazo(mis) == 0.0
+
+    def test_agrupado(self):
+        mis = pd.DataFrame({
+            "estado": ["rechazada", "completada", "rechazada", "completada"],
+            "posicion_inicial": ["INSP-01", "INSP-01", "INSP-02", "INSP-02"],
+        })
+        s = tasa_rechazo(mis, agrupar_por="posicion_inicial")
+        assert s["INSP-01"] == pytest.approx(0.5)
+        assert s["INSP-02"] == pytest.approx(0.5)

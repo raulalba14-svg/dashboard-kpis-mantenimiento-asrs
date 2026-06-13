@@ -21,7 +21,10 @@ from src.kpis import (
     disponibilidad_por_equipo,
     mttr_por_equipo,
     ciclos_por_equipo,
+    tasa_rechazo,
+    tiempo_ciclo,
 )
+from src.format import fmt_es
 
 
 _OBJETIVO_DISP = 95.0  # %
@@ -212,4 +215,104 @@ def rendimiento_stv(
         f"sobre <b>{len(stv_ids)}</b> vehículos y <b>{n_fallos:,}</b> fallos. "
         + (f"El STV más crítico es <b>{peor}</b> (<b>{peor_valor:.2f}%</b>). " if peor else "")
         + juicio
+    )
+
+
+# ---------------------------------------------------------------------------
+# Módulo 4 — Obstrucciones y rechazos
+# ---------------------------------------------------------------------------
+
+def obstrucciones_rechazos(
+    misiones: pd.DataFrame,
+    eventos: pd.DataFrame,
+) -> str:
+    if misiones.empty:
+        return _vacio()
+
+    tasa = tasa_rechazo(misiones)
+    tasa_pct = tasa * 100 if tasa else 0.0
+    n_rechazos = int((misiones["estado"] == "rechazada").sum())
+    n_total = int(len(misiones))
+
+    if n_rechazos == 0:
+        return f"Cero rechazos sobre <b>{fmt_es(n_total, 0)}</b> misiones — el flujo del anillo es limpio."
+
+    return (
+        f"Tasa de rechazo global: <b>{fmt_es(tasa_pct, 2)}%</b> "
+        f"(<b>{fmt_es(n_rechazos, 0)}</b> rechazos sobre <b>{fmt_es(n_total, 0)}</b> misiones). "
+        "El desglose por inspector y motivo señala dónde concentrar la revisión, "
+        "y la evolución mensual indica si la tendencia mejora."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Módulo 5 — Expedición (anillo único)
+# ---------------------------------------------------------------------------
+
+def expedicion(
+    misiones: pd.DataFrame,
+    equipos: pd.DataFrame,
+    rango: tuple[str, str],
+) -> str:
+    anillo_ids = set(equipos.loc[equipos["zona"] == "anillo", "id"])
+    if not anillo_ids:
+        return _vacio("No hay STV del anillo en los filtros activos.")
+
+    mis_anillo = misiones[
+        (misiones["id_equipo"].isin(anillo_ids)) &
+        (misiones["estado"] == "completada")
+    ]
+    if mis_anillo.empty:
+        return _vacio("No hay misiones completadas en el anillo.")
+
+    t_ciclo_s = tiempo_ciclo(mis_anillo, unidad="segundos")
+    t_medio = float(t_ciclo_s.mean())
+
+    # Throughput: cuna simple ⇒ 1 pallet por misión completada.
+    pallets = len(mis_anillo)
+    ts_ini = pd.Timestamp(rango[0])
+    ts_fin = pd.Timestamp(rango[1]) + pd.Timedelta(days=1)
+    horas = (ts_fin - ts_ini).total_seconds() / 3600.0
+    throughput = pallets / horas if horas > 0 else 0
+
+    # Cuello de botella: STV con tiempo de ciclo medio más alto
+    t_por_stv = (
+        mis_anillo.assign(
+            _t=(pd.to_datetime(mis_anillo["ts_fin"])
+                - pd.to_datetime(mis_anillo["ts_inicio"])).dt.total_seconds()
+        )
+        .groupby("id_equipo")["_t"].mean()
+    )
+    cuello = t_por_stv.idxmax() if len(t_por_stv) else None
+    cuello_t = float(t_por_stv.max()) if len(t_por_stv) else 0.0
+
+    cierre = (
+        f" El cuello de botella es <b>{cuello}</b> "
+        f"(<b>{fmt_es(cuello_t, 1)} s</b> de tiempo de ciclo medio)."
+        if cuello else ""
+    )
+
+    # Pedidos de expedición (si el dataset incluye id_pedido)
+    pedidos_txt = ""
+    if "id_pedido" in mis_anillo.columns:
+        ped = mis_anillo[mis_anillo["id_pedido"].astype(str).str.startswith("PED-")]
+        if not ped.empty:
+            g = ped.groupby("id_pedido").agg(
+                ini=("ts_inicio", "min"), fin=("ts_fin", "max"),
+            )
+            t_ped_min = (
+                (pd.to_datetime(g["fin"]) - pd.to_datetime(g["ini"]))
+                .dt.total_seconds() / 60
+            )
+            pedidos_txt = (
+                f"<b>{fmt_es(len(g), 0)}</b> pedidos completados en expedición, con un "
+                f"tiempo medio de completado de <b>{fmt_es(t_ped_min.mean(), 1)} min</b> "
+                f"(P95 <b>{fmt_es(t_ped_min.quantile(0.95), 0)} min</b>). "
+            )
+
+    return (
+        pedidos_txt
+        + f"Throughput de <b>{fmt_es(throughput, 1)} pallets/h</b> con un tiempo de "
+        f"ciclo medio de <b>{fmt_es(t_medio, 1)} s</b> por transferencia."
+        + cierre
     )

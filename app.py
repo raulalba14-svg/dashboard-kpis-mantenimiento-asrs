@@ -28,7 +28,7 @@ hero(
     subtitulo=(
         "Cada incidencia del almacén se registra automáticamente en el WMS/WCS, "
         "pero queda sin explotar. Esta herramienta transforma <b>939.994 misiones</b> y "
-        "<b>2.167 eventos</b> en indicadores accionables — <b>MTTR</b>, <b>MTBF</b>, "
+        "<b>2.207 eventos</b> en indicadores accionables — <b>MTTR</b>, <b>MTBF</b>, "
         "<b>disponibilidad</b> — para anticipar fallos y priorizar mantenimientos."
     ),
 )
@@ -142,9 +142,15 @@ _CARDS = [
     ("nav_3", "🚚", "Rendimiento STV",
      "15 vehículos del anillo · MTTR/MTBF/disponibilidad",
      "pages/3_Rendimiento_STV.py", "#F18F01", "#FEF3E2", "3"),
-    ("nav_4", "⚖️", "Comparativa de periodos",
+    ("nav_4", "🚫", "Obstrucciones y rechazos",
+     "Inspección de recepción · tasa de rechazo · motivos",
+     "pages/4_Obstrucciones_rechazos.py", "#C73E1D", "#FBE7E2", "4"),
+    ("nav_5", "📦", "Expedición",
+     "Pedidos del anillo · tiempo de completado · throughput",
+     "pages/5_Expedicion.py", "#2E7D32", "#E6F4EA", "5"),
+    ("nav_6", "⚖️", "Comparativa de periodos",
      "Compara dos rangos · variación de KPIs",
-     "pages/4_Comparativa_periodos.py", "#6B4E9C", "#EFE9F7", "4"),
+     "pages/6_Comparativa_periodos.py", "#6B4E9C", "#EFE9F7", "6"),
 ]
 
 # CSS base + per-card (usa clase `st-key-<key>` que Streamlit inyecta al pasar `key=` a un container)
@@ -255,7 +261,7 @@ def _card_button(key: str, icono: str, titulo: str, descripcion: str, page: str)
             st.switch_page(page)
 
 
-# Layout: 5 módulos en filas de 3 columnas (0,1,2 · 3,4)
+# Layout: módulos navegables en filas de 3 columnas (0,1,2 · 3,4,5 · 6)
 for fila_inicio in range(0, len(_CARDS), 3):
     cols = st.columns(3, gap="medium")
     for col, card in zip(cols, _CARDS[fila_inicio:fila_inicio + 3]):

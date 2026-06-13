@@ -20,6 +20,7 @@ from src.config import (
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.export import panel_exportacion
+from src.format import fmt_es
 
 st.set_page_config(
     page_title="Comparativa de periodos",
@@ -32,7 +33,7 @@ init_session_state()
 render_sidebar_filtros()
 
 hero(
-    kicker="Módulo 4",
+    kicker="Módulo 6",
     titulo="Comparativa de periodos",
     subtitulo=(
         "Compara dos rangos de fechas y mide la variación de los KPIs principales "
@@ -153,8 +154,12 @@ st.divider()
 # KPIs comparados
 # ---------------------------------------------------------------------------
 
-def _delta_card(label, val_a, val_b, fmt="{:.2f}", sufijo="", mejor="alto"):
-    """Renderiza una tarjeta con valor A, valor B y delta coloreado."""
+def _delta_card(label, val_a, val_b, decimales=2, sufijo="", mejor="alto"):
+    """Renderiza una tarjeta con valor A, valor B y delta coloreado.
+
+    Los valores se muestran en formato español (punto de miles, coma decimal)
+    con `decimales` decimales.
+    """
     delta = val_b - val_a
     if mejor == "alto":
         signo_ok = delta >= 0
@@ -173,19 +178,19 @@ def _delta_card(label, val_a, val_b, fmt="{:.2f}", sufijo="", mejor="alto"):
             <div>
                 <div style="color:{GRIS_500};font-size:0.7rem;">A</div>
                 <div style="color:#101828;font-size:1.25rem;font-weight:600;">
-                    {fmt.format(val_a)}{sufijo}
+                    {fmt_es(val_a, decimales)}{sufijo}
                 </div>
             </div>
             <div>
                 <div style="color:{GRIS_500};font-size:0.7rem;">B</div>
                 <div style="color:#101828;font-size:1.25rem;font-weight:600;">
-                    {fmt.format(val_b)}{sufijo}
+                    {fmt_es(val_b, decimales)}{sufijo}
                 </div>
             </div>
             <div style="text-align:right;">
                 <div style="color:{GRIS_500};font-size:0.7rem;">Δ</div>
                 <div style="color:{color};font-size:1.05rem;font-weight:700;">
-                    {flecha} {signo}{fmt.format(delta)}{sufijo}
+                    {flecha} {signo}{fmt_es(delta, decimales)}{sufijo}
                 </div>
             </div>
         </div>
@@ -198,14 +203,14 @@ with c1:
     st.markdown(
         _delta_card("Disponibilidad media",
                     kpis_a["disponibilidad_media"], kpis_b["disponibilidad_media"],
-                    fmt="{:.2f}", sufijo=" %", mejor="alto"),
+                    decimales=2, sufijo=" %", mejor="alto"),
         unsafe_allow_html=True,
     )
 with c2:
     st.markdown(
         _delta_card(f"MTTR medio ({unidad_label})",
                     kpis_a["mttr_medio"], kpis_b["mttr_medio"],
-                    fmt="{:.1f}", mejor="bajo"),
+                    decimales=1, mejor="bajo"),
         unsafe_allow_html=True,
     )
 
@@ -214,14 +219,14 @@ with c3:
     st.markdown(
         _delta_card("Nº fallos",
                     kpis_a["n_fallos"], kpis_b["n_fallos"],
-                    fmt="{:,}", mejor="bajo"),
+                    decimales=0, mejor="bajo"),
         unsafe_allow_html=True,
     )
 with c4:
     st.markdown(
         _delta_card("Ciclos totales",
                     kpis_a["ciclos_totales"], kpis_b["ciclos_totales"],
-                    fmt="{:,}", mejor="alto"),
+                    decimales=0, mejor="alto"),
         unsafe_allow_html=True,
     )
 

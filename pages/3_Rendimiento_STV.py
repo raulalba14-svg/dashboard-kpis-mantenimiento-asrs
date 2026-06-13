@@ -20,6 +20,7 @@ from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import rendimiento_stv
 from src.export import panel_exportacion
+from src.format import fmt_es
 
 st.set_page_config(
     page_title="Rendimiento STV",
@@ -109,19 +110,19 @@ n_fallos_total = int(tabla["n_fallos"].sum())
 
 with c1:
     st.markdown(kpi_card_html("Disponibilidad media anillo",
-                              f"{disp_media:.2f} %", icono="📈"),
+                              f"{fmt_es(disp_media, 2)} %", icono="📈"),
                 unsafe_allow_html=True)
 with c2:
     st.markdown(kpi_card_html(f"MTTR medio ({unidad_label})",
-                              f"{mttr_medio:.1f}", icono="🛠️"),
+                              fmt_es(mttr_medio, 1), icono="🛠️"),
                 unsafe_allow_html=True)
 with c3:
     st.markdown(kpi_card_html("Ciclos totales",
-                              f"{ciclos_total:,}", icono="🔄"),
+                              fmt_es(ciclos_total, 0), icono="🔄"),
                 unsafe_allow_html=True)
 with c4:
     st.markdown(kpi_card_html("Fallos en el periodo",
-                              f"{n_fallos_total:,}", icono="⚠️"),
+                              fmt_es(n_fallos_total, 0), icono="⚠️"),
                 unsafe_allow_html=True)
 
 lectura_ejecutiva(rendimiento_stv(eventos, misiones, equipos, rango_tuple))
@@ -175,7 +176,7 @@ with cr:
     st.plotly_chart(fig_disp, use_container_width=True,
                     config={"displayModeBar": False})
     st.caption(
-        f"🟢 ≥ 95 %  ·  🟠 90 – 95 %  ·  🔴 < 90 %  ·  Media del anillo: {disp_media:.2f} %"
+        f"🟢 ≥ 95 %  ·  🟠 90 – 95 %  ·  🔴 < 90 %  ·  Media del anillo: {fmt_es(disp_media, 2)} %"
     )
 
 with cs:
@@ -214,22 +215,22 @@ with st.expander("🔍 Detalle individual de un STV", expanded=False):
 
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     with cc1:
-        st.markdown(kpi_card_html("Disponibilidad", f"{row['disponibilidad']:.2f} %"),
+        st.markdown(kpi_card_html("Disponibilidad", f"{fmt_es(row['disponibilidad'], 2)} %"),
                     unsafe_allow_html=True)
     with cc2:
-        mttr_str = f"{row['mttr']:.1f}" if pd.notna(row['mttr']) else "—"
+        mttr_str = fmt_es(row['mttr'], 1) if pd.notna(row['mttr']) else "—"
         st.markdown(kpi_card_html(f"MTTR ({unidad_label})", mttr_str),
                     unsafe_allow_html=True)
     with cc3:
-        mtbf_str = f"{row['mtbf']:,.0f}" if pd.notna(row['mtbf']) else "—"
+        mtbf_str = fmt_es(row['mtbf'], 0) if pd.notna(row['mtbf']) else "—"
         st.markdown(kpi_card_html(f"MTBF ({unidad_label})", mtbf_str),
                     unsafe_allow_html=True)
     with cc4:
         st.markdown(kpi_card_html("Ciclos",
-                                  f"{int(row['ciclos']) if pd.notna(row['ciclos']) else 0:,}"),
+                                  fmt_es(int(row['ciclos']) if pd.notna(row['ciclos']) else 0, 0)),
                     unsafe_allow_html=True)
     with cc5:
-        st.markdown(kpi_card_html("Fallos", f"{int(row['n_fallos']):,}"),
+        st.markdown(kpi_card_html("Fallos", fmt_es(int(row['n_fallos']), 0)),
                     unsafe_allow_html=True)
 
     st.markdown("")

@@ -120,9 +120,57 @@ def test_estacionalidad_misiones(dataset):
 def test_estados_misiones(dataset):
     mis = dataset["misiones"]
     estados = set(mis["estado"].unique())
-    assert estados == {"completada", "abortada"}
+    # Los STV añaden el estado 'rechazada' (pallets que la inspección descarta);
+    # los SRM solo completan o abortan.
+    assert estados == {"completada", "abortada", "rechazada"}
     completadas_pct = (mis["estado"] == "completada").mean()
     assert 0.90 <= completadas_pct <= 0.99
+
+
+def test_rechazos_solo_en_stv(dataset):
+    """Solo los STV (zona anillo) tienen misiones rechazadas; los SRM no."""
+    mis = dataset["misiones"]
+    eq = dataset["equipos"]
+    ids_anillo = set(eq.loc[eq["zona"] == "anillo", "id"])
+    rech = mis[mis["estado"] == "rechazada"]
+    assert not rech.empty
+    assert rech["id_equipo"].isin(ids_anillo).all(), \
+        "Hay rechazos asignados a equipos fuera del anillo"
+
+
+def test_rechazos_inspeccion(dataset):
+    """Las rechazadas salen de un inspector (INSP-xx) hacia RECHAZO, con motivo."""
+    mis = dataset["misiones"]
+    rech = mis[mis["estado"] == "rechazada"]
+    assert rech["posicion_inicial"].str.startswith("INSP-").all()
+    assert (rech["posicion_final"] == "RECHAZO").all()
+    motivos = set(rech["motivo_rechazo"].dropna().unique())
+    assert motivos.issubset(
+        {"fuera_de_dimensiones", "exceso_de_peso", "hueco_pallet_incorrecto"}
+    )
+    # El motivo solo aparece en las rechazadas, no en el resto.
+    no_rech = mis[mis["estado"] != "rechazada"]
+    assert (no_rech["motivo_rechazo"].fillna("") == "").all()
+
+
+def test_pedidos_expedicion(dataset):
+    """Los pedidos (PED-xxxxxx) agrupan misiones completadas del anillo, con
+    28 misiones por trailer (cuna simple) y muelle M-1..M-6 asignado."""
+    mis = dataset["misiones"]
+    eq = dataset["equipos"]
+    ids_anillo = set(eq.loc[eq["zona"] == "anillo", "id"])
+
+    con_pedido = mis[mis["id_pedido"].fillna("").astype(str).str.startswith("PED-")]
+    assert not con_pedido.empty
+    # Todas las misiones con pedido son completadas y del anillo.
+    assert (con_pedido["estado"] == "completada").all()
+    assert con_pedido["id_equipo"].isin(ids_anillo).all()
+    # Cada trailer = 28 misiones de cuna simple.
+    tam = con_pedido.groupby("id_pedido").size()
+    assert (tam == 28).all(), "Hay pedidos que no son de 28 misiones"
+    # Muelles y orígenes con las etiquetas esperadas.
+    assert con_pedido["muelle"].str.match(r"^M-[1-6]$").all()
+    assert con_pedido["origen_pasillo"].str.match(r"^P0[1-8]$").all()
 
 
 def test_rango_fechas(dataset):

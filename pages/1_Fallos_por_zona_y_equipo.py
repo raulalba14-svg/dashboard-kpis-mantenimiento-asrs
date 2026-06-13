@@ -20,6 +20,7 @@ from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import fallos_por_zona
 from src.export import panel_exportacion
+from src.format import fmt_es
 
 st.set_page_config(
     page_title="Fallos por zona y equipo",
@@ -92,16 +93,16 @@ top_equipo_n = ev_enriq["id_equipo"].value_counts().iloc[0]
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.markdown(kpi_card_html("Total fallos", f"{n_fallos_total:,}",
+    st.markdown(kpi_card_html("Total fallos", fmt_es(n_fallos_total, 0),
                               icono="⚠️"), unsafe_allow_html=True)
 with c2:
-    st.markdown(kpi_card_html("Equipos afectados", f"{n_equipos_afectados}",
+    st.markdown(kpi_card_html("Equipos afectados", fmt_es(n_equipos_afectados, 0),
                               icono="🤖"), unsafe_allow_html=True)
 with c3:
     st.markdown(kpi_card_html("Equipo con más fallos", top_equipo,
                               icono="🔴"), unsafe_allow_html=True)
 with c4:
-    st.markdown(kpi_card_html("Fallos del top", f"{top_equipo_n:,}",
+    st.markdown(kpi_card_html("Fallos del top", fmt_es(top_equipo_n, 0),
                               icono="📊"), unsafe_allow_html=True)
 
 lectura_ejecutiva(fallos_por_zona(eventos, equipos))
@@ -264,7 +265,7 @@ if not srm_pos.empty:
             f"<div style='padding-top:1.8rem;color:{GRIS_700};font-size:0.92rem;'>"
             f"Vista de alzado (columna × altura). Cada celda es una ubicación "
             f"física exacta. Pasillo seleccionado: <b>{pasillo_sel}</b> · "
-            f"<b>{n_pasillo:,}</b> fallos en el periodo."
+            f"<b>{fmt_es(n_pasillo, 0)}</b> fallos en el periodo."
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -303,8 +304,9 @@ if not srm_pos.empty:
             )
 
     st.caption(
-        f"{len(ev_pos_validos):,} de {len(ev_pos):,} eventos con misión activa "
-        f"identificada ({100 * len(ev_pos_validos) / max(len(ev_pos), 1):.0f}%)."
+        f"{fmt_es(len(ev_pos_validos), 0)} de {fmt_es(len(ev_pos), 0)} eventos con "
+        f"misión activa identificada "
+        f"({fmt_es(100 * len(ev_pos_validos) / max(len(ev_pos), 1), 0)}%)."
     )
 else:
     st.info("Sin fallos SRM con posición identificada en el periodo.")

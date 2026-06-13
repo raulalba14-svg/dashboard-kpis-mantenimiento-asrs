@@ -23,6 +23,7 @@ from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import resumen_general
 from src.export import panel_exportacion
+from src.format import fmt_es
 
 st.set_page_config(
     page_title="Resumen general",
@@ -111,14 +112,14 @@ def _fmt_delta_disp(v):
     if v is None:
         return None, None
     sign = "+" if v >= 0 else ""
-    return f"{sign}{v:.2f} pp", v >= 0
+    return f"{sign}{fmt_es(v, 2)} pp", v >= 0
 
 
 def _fmt_delta_int(v, sufijo=""):
     if v is None:
         return None, None
     sign = "+" if v >= 0 else ""
-    return f"{sign}{v:,}{sufijo}", v <= 0   # menos fallos = mejor (delta positivo)
+    return f"{sign}{fmt_es(v, 0)}{sufijo}", v <= 0   # menos fallos = mejor (delta positivo)
 
 
 def _fmt_delta_mttr(v):
@@ -126,7 +127,7 @@ def _fmt_delta_mttr(v):
         return None, None
     sign = "+" if v >= 0 else ""
     # MTTR menor = mejor
-    return f"{sign}{v:.1f} min", v <= 0
+    return f"{sign}{fmt_es(v, 1)} min", v <= 0
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ with c1:
             </div>
             <div style="color:#101828;font-size:2.2rem;font-weight:700;
                         line-height:1.1;margin-top:4px;">
-                {kpis['disponibilidad_media']:.2f} %
+                {fmt_es(kpis['disponibilidad_media'], 2)} %
             </div>
         </div>
         """,
@@ -169,7 +170,7 @@ with c2:
             </div>
             <div style="color:#101828;font-size:2.2rem;font-weight:700;
                         line-height:1.1;margin-top:4px;">
-                {kpis['n_fallos']:,}
+                {fmt_es(kpis['n_fallos'], 0)}
             </div>
         </div>
         """,
@@ -199,7 +200,7 @@ with c3:
     st.markdown(
         kpi_card_html(
             f"MTTR medio ({unidad_label})",
-            f"{kpis['mttr_medio']:.1f}",
+            fmt_es(kpis['mttr_medio'], 1),
             delta_mttr_txt,
             delta_mttr_pos,
             icono="🛠️",
@@ -211,7 +212,7 @@ with c4:
     st.markdown(
         kpi_card_html(
             f"MTBF medio ({unidad_label})",
-            f"{kpis['mtbf_medio']:,.0f}",
+            fmt_es(kpis['mtbf_medio'], 0),
             None, None,
             icono="⏱️",
         ),
@@ -222,7 +223,7 @@ with c5:
     st.markdown(
         kpi_card_html(
             "Ciclos totales",
-            f"{kpis['ciclos_totales']:,}",
+            fmt_es(kpis['ciclos_totales'], 0),
             delta_ciclos_txt,
             delta_ciclos_pos,
             icono="🔄",

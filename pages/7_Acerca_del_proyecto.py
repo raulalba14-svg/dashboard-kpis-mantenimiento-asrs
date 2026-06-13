@@ -117,8 +117,9 @@ _tablas = [
     ("equipos", "Inventario de transelevadores (SRM) y vehículos del anillo (STV)",
      "id · tipo (SRM/STV) · zona · estado_operativo",
      PRIMARIO_CLARO),
-    ("misiones", "Cada movimiento ejecutado por un equipo",
-     "id_mision · id_equipo · posicion_inicial · posicion_final · ts_inicio · ts_fin · estado",
+    ("misiones", "Cada movimiento ejecutado por un equipo (con rechazos y pedidos de expedición)",
+     "id_mision · id_equipo · posicion_inicial · posicion_final · ts_inicio · ts_fin · "
+     "estado · motivo_rechazo · id_pedido · muelle · origen_pasillo",
      EXITO),
     ("tipos_error", "Catálogo de códigos de error del WCS",
      "codigo · descripcion · duracion_media_min",
@@ -191,7 +192,7 @@ with col_metrics:
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">Eventos de incidencia</span>
-                <span style="color:{GRIS_900};font-weight:700;">2.167</span>
+                <span style="color:{GRIS_900};font-weight:700;">2.207</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                 <span style="color:{GRIS_700};">SRM (transelevadores)</span>

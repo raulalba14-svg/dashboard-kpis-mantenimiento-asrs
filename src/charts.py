@@ -17,6 +17,7 @@ from src.theme import (
     PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO,
     GRIS_100, GRIS_300, GRIS_500, GRIS_700, GRIS_900,
 )
+from src.format import fmt_es
 
 
 # ---------------------------------------------------------------------------
@@ -250,9 +251,8 @@ def gauge_disponibilidad(valor: float, referencia: float = 95.0,
         color_bar = CRITICO
 
     fig = go.Figure(go.Indicator(
-        mode="gauge+number",
+        mode="gauge",
         value=valor,
-        number=dict(suffix=" %", font=dict(size=42, color=GRIS_900)),
         title=dict(text=titulo, font=dict(size=14, color=GRIS_700)),
         gauge=dict(
             axis=dict(range=[80, 100], tickwidth=1, tickcolor=GRIS_300,
@@ -272,6 +272,91 @@ def gauge_disponibilidad(valor: float, referencia: float = 95.0,
             ),
         ),
     ))
+    # Número central en formato español (Plotly formatea en inglés de fábrica).
+    fig.add_annotation(
+        x=0.5, y=0.0, xref="paper", yref="paper",
+        text=f"{fmt_es(valor, 2)} %",
+        showarrow=False, font=dict(size=42, color=GRIS_900),
+    )
+    fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=260)
+    return fig
+
+
+def gauge_objetivo(
+    valor: float,
+    rango: tuple[float, float],
+    umbral_verde: float,
+    umbral_ambar: float,
+    objetivo: float,
+    titulo: str = "",
+    sufijo: str = " %",
+    menor_es_mejor: bool = False,
+    decimales: int = 2,
+) -> go.Figure:
+    """
+    Indicador semicircular (gauge) genérico contra un objetivo, con semáforo.
+
+    - rango: (min, max) del eje.
+    - umbral_verde / umbral_ambar: cortes del semáforo.
+    - objetivo: línea de referencia (threshold).
+    - menor_es_mejor: si True (p. ej. tasa de rechazo), valores bajos = verde y
+      altos = rojo; los `steps` se pintan en consecuencia. Si False, al revés
+      (como la disponibilidad).
+    - decimales: decimales del número central (se muestra en formato español).
+
+    El número central se renderiza como anotación con `fmt_es` (punto de miles,
+    coma decimal); el `Indicator` de Plotly formatea en inglés, por eso se usa
+    `mode="gauge"` sin número automático y se añade el texto formateado aparte.
+    """
+    if menor_es_mejor:
+        if valor <= umbral_verde:
+            color_bar = EXITO
+        elif valor <= umbral_ambar:
+            color_bar = ADVERTENCIA
+        else:
+            color_bar = CRITICO
+        steps = [
+            {"range": [rango[0], umbral_verde], "color": "#E8F5E9"},
+            {"range": [umbral_verde, umbral_ambar], "color": "#FFF4E5"},
+            {"range": [umbral_ambar, rango[1]], "color": "#FDECEA"},
+        ]
+    else:
+        if valor >= umbral_verde:
+            color_bar = EXITO
+        elif valor >= umbral_ambar:
+            color_bar = ADVERTENCIA
+        else:
+            color_bar = CRITICO
+        steps = [
+            {"range": [rango[0], umbral_ambar], "color": "#FDECEA"},
+            {"range": [umbral_ambar, umbral_verde], "color": "#FFF4E5"},
+            {"range": [umbral_verde, rango[1]], "color": "#E8F5E9"},
+        ]
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge",
+        value=valor,
+        title=dict(text=titulo, font=dict(size=14, color=GRIS_700)),
+        gauge=dict(
+            axis=dict(range=list(rango), tickwidth=1, tickcolor=GRIS_300,
+                      tickfont=dict(color=GRIS_500, size=11)),
+            bar=dict(color=color_bar, thickness=0.32),
+            bgcolor="white",
+            borderwidth=0,
+            steps=steps,
+            threshold=dict(
+                line=dict(color=GRIS_900, width=3),
+                thickness=0.85,
+                value=objetivo,
+            ),
+        ),
+    ))
+    # Número central en formato español (Plotly no lo soporta de fábrica).
+    fig.add_annotation(
+        x=0.5, y=0.0, xref="paper", yref="paper",
+        text=f"{fmt_es(valor, decimales)}{sufijo}",
+        showarrow=False, font=dict(size=42, color=GRIS_900),
+    )
     fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=260)
     return fig
 
@@ -310,11 +395,15 @@ def sparkline(serie: pd.Series, color: str | None = None,
 
 def serie_anual_area(serie: pd.Series, titulo: str, label_y: str = "",
                      referencia: float | None = None,
-                     color: str | None = None) -> go.Figure:
+                     color: str | None = None,
+                     rango_y: tuple[float, float] | None = None) -> go.Figure:
     """
     Serie mensual con área bajo la curva (gradiente) y máx/mín marcados.
 
     serie: indexada por mes (1..12).
+    rango_y: si se especifica, acota el eje Y a (min, max) para que variaciones
+      pequeñas se aprecien; en ese caso el relleno baja hasta el borde inferior
+      del rango (no hasta cero) para que el área no quede cortada.
     """
     color = color or PRIMARIO
     meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
@@ -323,12 +412,20 @@ def serie_anual_area(serie: pd.Series, titulo: str, label_y: str = "",
     df["mes_label"] = df["mes"].apply(lambda m: meses[m - 1])
 
     fig = go.Figure()
+    # Con eje acotado, el relleno hasta cero quedaría fuera de la vista; se usa
+    # una baseline invisible en el borde inferior del rango y se rellena hacia ella.
+    if rango_y is not None:
+        fig.add_trace(go.Scatter(
+            x=df["mes_label"], y=[rango_y[0]] * len(df),
+            mode="lines", line=dict(width=0),
+            hoverinfo="skip", showlegend=False,
+        ))
     fig.add_trace(go.Scatter(
         x=df["mes_label"], y=df["valor"],
         mode="lines+markers",
         line=dict(color=color, width=3),
         marker=dict(size=8, color=color, line=dict(color="white", width=1.5)),
-        fill="tozeroy",
+        fill="tozeroy" if rango_y is None else "tonexty",
         fillcolor=f"rgba(31, 78, 121, 0.08)",
         name=label_y,
         hovertemplate="<b>%{x}</b><br>%{y:.2f}<extra></extra>",
@@ -360,6 +457,7 @@ def serie_anual_area(serie: pd.Series, titulo: str, label_y: str = "",
         title=titulo,
         xaxis_title="",
         yaxis_title=label_y,
+        yaxis=dict(range=list(rango_y)) if rango_y is not None else None,
         showlegend=False,
         height=320,
     )
@@ -707,6 +805,191 @@ def plano_almacen(
         margin=dict(l=10, r=10, t=50, b=10),
         showlegend=False,
         plot_bgcolor="#F9FAFB",
+    )
+    return fig
+
+
+def barras_horizontales(
+    serie: pd.Series,
+    titulo: str = "",
+    label_x: str = "",
+    color: str = PRIMARIO,
+    color_fn=None,
+    formato_valor: str = "{:,.0f}",
+    top_n: int | None = None,
+) -> go.Figure:
+    """
+    Barras horizontales ordenadas por valor (mayor arriba), con el valor
+    anotado al final de cada barra.
+
+    Pensado para rankings simples: nº de fallos por tipo, horas de parada por
+    tipo, etc. `formato_valor` controla la etiqueta y el hover (p. ej.
+    "{:,.0f}" para enteros, "{:,.1f} h" para horas).
+
+    Color: por defecto un color sólido del tema. Si se pasa `color_fn` (una
+    función valor -> color), se colorea cada barra según su valor; se aplica
+    tras ordenar, así que el color siempre corresponde a su barra.
+    """
+    s = serie.dropna().sort_values(ascending=True)  # ascending: mayor arriba en barh
+    if top_n:
+        s = s.tail(top_n)
+
+    textos = [formato_valor.format(v) for v in s.values]
+    color_barras = [color_fn(v) for v in s.values] if color_fn else color
+
+    fig = go.Figure(go.Bar(
+        x=s.values, y=s.index.tolist(), orientation="h",
+        marker=dict(color=color_barras, line=dict(color="white", width=0.5)),
+        text=textos, textposition="outside",
+        textfont=dict(color=GRIS_700, size=11),
+        hovertemplate="<b>%{y}</b><br>" + label_x + ": %{text}<extra></extra>",
+    ))
+    fig.update_layout(
+        title=titulo,
+        xaxis_title=label_x,
+        yaxis_title="",
+        height=max(300, 26 * len(s) + 90),
+        bargap=0.22,
+        margin=dict(r=60),  # espacio para la etiqueta de valor fuera de la barra
+    )
+    return fig
+
+
+def donut_categoria(serie: pd.Series, titulo: str = "",
+                    color_map: dict | None = None) -> go.Figure:
+    """
+    Donut chart con la paleta semántica por defecto.
+    """
+    df = serie.reset_index()
+    df.columns = ["categoria", "valor"]
+    color_map = color_map or COLOR_CATEGORIA
+    colores = [color_map.get(c, PRIMARIO_CLARO) for c in df["categoria"]]
+
+    total = df["valor"].sum()
+    fig = go.Figure(go.Pie(
+        labels=df["categoria"], values=df["valor"],
+        hole=0.62,
+        marker=dict(colors=colores, line=dict(color="white", width=2)),
+        textinfo="label+percent",
+        textposition="outside",
+        hovertemplate="<b>%{label}</b><br>%{value:,} rechazos<br>%{percent}<extra></extra>",
+    ))
+    fig.update_layout(
+        title=titulo,
+        showlegend=False,
+        annotations=[dict(
+            text=f"<b>{int(total):,}</b><br><span style='font-size:11px;color:{GRIS_500}'>Total</span>",
+            x=0.5, y=0.5, font=dict(size=18, color=GRIS_900),
+            showarrow=False,
+        )],
+        height=340,
+    )
+    return fig
+
+
+def dual_axis(
+    serie_a: pd.Series, label_a: str, color_a: str,
+    serie_b: pd.Series, label_b: str, color_b: str,
+    titulo: str,
+) -> go.Figure:
+    """
+    Línea+barras en dos ejes Y (p. ej. TC medio vs. throughput).
+    Ambas series indexadas por el mismo eje X (mes 1..12).
+    """
+    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+    x = [meses[m - 1] for m in serie_a.index]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x, y=serie_a.values, name=label_a,
+        marker_color=color_a, opacity=0.78,
+        yaxis="y", hovertemplate=f"{label_a}: %{{y:.1f}}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=serie_b.values, name=label_b,
+        mode="lines+markers", line=dict(color=color_b, width=3),
+        marker=dict(size=8), yaxis="y2",
+        hovertemplate=f"{label_b}: %{{y:.1f}}<extra></extra>",
+    ))
+    fig.update_layout(
+        title=titulo,
+        xaxis=dict(title=""),
+        yaxis=dict(title=label_a, color=color_a, gridcolor="#E4E7EC"),
+        yaxis2=dict(title=label_b, color=color_b, overlaying="y",
+                    side="right", showgrid=False),
+        legend=dict(orientation="h", y=1.08, x=0),
+        height=340,
+    )
+    return fig
+
+
+def evolucion_dos_lineas(
+    serie_a: pd.Series, label_a: str, color_a: str,
+    serie_b: pd.Series, label_b: str, color_b: str,
+    titulo: str, label_y: str = "",
+) -> go.Figure:
+    """Dos series mensuales superpuestas con leyenda."""
+    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+    fig = go.Figure()
+    for serie, label, color in [(serie_a, label_a, color_a),
+                                 (serie_b, label_b, color_b)]:
+        s = serie.reindex(range(1, 13))
+        fig.add_trace(go.Scatter(
+            x=[meses[i - 1] for i in s.index],
+            y=s.values,
+            mode="lines+markers",
+            name=label,
+            line=dict(color=color, width=3),
+            marker=dict(size=8, color=color, line=dict(color="white", width=1.5)),
+            hovertemplate=f"<b>{label}</b><br>%{{x}}: %{{y:.2f}}<extra></extra>",
+        ))
+    fig.update_layout(
+        title=titulo,
+        xaxis_title="",
+        yaxis_title=label_y,
+        legend=dict(orientation="h", y=1.08, x=0),
+        height=340,
+    )
+    return fig
+
+
+def evolucion_lineas_categoria(
+    series: dict[str, pd.Series],
+    titulo: str = "",
+    label_y: str = "",
+    color_map: dict[str, str] | None = None,
+) -> go.Figure:
+    """
+    Varias series mensuales con leyenda, una línea de color por categoría.
+
+    `series` es un dict {categoría: serie mensual indexada por mes 1..12}.
+    Pensado para pocas categorías con identidad propia (p. ej. motivos de
+    rechazo).
+    """
+    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+    x_meses = list(range(1, 13))
+    paleta = [PRIMARIO, ADVERTENCIA, PRIMARIO_CLARO, CRITICO, EXITO]
+
+    fig = go.Figure()
+    for i, (categoria, serie) in enumerate(series.items()):
+        color = (color_map or {}).get(categoria, paleta[i % len(paleta)])
+        s = serie.reindex(x_meses)
+        fig.add_trace(go.Scatter(
+            x=[meses[m - 1] for m in x_meses],
+            y=s.values,
+            mode="lines+markers",
+            name=categoria,
+            line=dict(color=color, width=3),
+            marker=dict(size=7, color=color, line=dict(color="white", width=1.5)),
+            hovertemplate=f"<b>{categoria}</b><br>%{{x}}: %{{y:,.0f}}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title=titulo,
+        xaxis_title="",
+        yaxis_title=label_y,
+        legend=dict(orientation="h", y=1.10, x=0),
+        height=360,
     )
     return fig
 

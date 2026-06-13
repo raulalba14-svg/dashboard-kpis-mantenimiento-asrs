@@ -9,10 +9,21 @@ Genera cuatro CSV coherentes entre sí:
 """
 
 import argparse
+import bisect
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+# Permite importar desde src/ aunque el script se ejecute como
+# `python scripts/generar_datos.py` (cwd = raíz del repo) o se cargue por ruta
+# de fichero desde src/data_loader (spec_from_file_location).
+_RAIZ = Path(__file__).resolve().parent.parent
+if str(_RAIZ) not in sys.path:
+    sys.path.insert(0, str(_RAIZ))
+
+from src.intervalos import union_solape_segundos
 
 # ---------------------------------------------------------------------------
 # Catálogos estáticos
@@ -86,6 +97,23 @@ CADENCIA_BASE = {"SRM": 140, "STV": 95}
 # Tasa base de fallos por cada 1000 misiones
 TASA_FALLOS = {"SRM": 2.2, "STV": 2.6}
 
+# Inspección de pallets en recepción: los rechazos los detecta un puesto de
+# inspección genérico (origen INSP-xx) y un STV del anillo los transporta al
+# puesto de rechazo. No revela la topología real de la instalación.
+N_INSPECTORES = 4
+POS_RECHAZO = "RECHAZO"
+MOTIVOS_RECHAZO   = ["fuera_de_dimensiones", "exceso_de_peso", "hueco_pallet_incorrecto"]
+P_MOTIVOS_RECHAZO = [0.45, 0.30, 0.25]
+
+# Pedidos de expedición: todos los pedidos son iguales — un trailer completo
+# de 28 pallets. Los STV del anillo tienen cuna simple (1 pallet por misión),
+# así que un trailer son 28 misiones de salida. La expedición carga en paralelo
+# en varios muelles: cada misión completada se asigna a un muelle y cada muelle
+# llena sus trailers secuencialmente.
+PALLETS_POR_PEDIDO   = 28
+MISIONES_POR_PEDIDO  = PALLETS_POR_PEDIDO   # cuna simple: 1 pallet/misión
+N_MUELLES_EXPEDICION = 6
+
 FECHA_INICIO = pd.Timestamp("2025-01-01")
 FECHA_FIN    = pd.Timestamp("2025-12-31")
 SEGUNDOS_DIA = 86_400
@@ -154,9 +182,14 @@ def generar_misiones(equipos: pd.DataFrame, rng: np.random.Generator) -> pd.Data
         duraciones = np.maximum(10, rng.lognormal(np.log(dur_s), 0.4, size=total)).astype(int)
         ts_fin_s = ts_inicio_s + duraciones
 
-        # Estado: la mayoría completadas, una pequeña fracción abortadas.
+        # Estado: la mayoría completadas; una fracción abortada y, en los STV,
+        # una pequeña proporción rechazada (pallets que la inspección descarta).
         r = rng.random(total)
-        estado = np.where(r < 0.97, "completada", "abortada")
+        if tipo == "STV":
+            estado = np.where(r < 0.95, "completada",
+                     np.where(r < 0.98, "abortada", "rechazada"))
+        else:
+            estado = np.where(r < 0.97, "completada", "abortada")
 
         # Posiciones según el tipo de equipo
         if tipo == "SRM":
@@ -264,6 +297,219 @@ def generar_eventos(
     return result.reset_index(drop=True)
 
 
+def asignar_rechazos_inspeccion(
+    misiones: pd.DataFrame,
+    equipos:  pd.DataFrame,
+    rng:      np.random.Generator,
+) -> pd.DataFrame:
+    """
+    Post-procesado de las misiones rechazadas de STV.
+
+    Un pallet rechazado no es un movimiento normal del anillo: lo detecta un
+    puesto de inspección genérico en recepción (origen INSP-xx), viaja al
+    puesto de rechazo (destino RECHAZO) transportado por un STV del anillo, y
+    lleva un motivo de rechazo (dimensiones, peso o hueco de pallet incorrecto).
+
+    Se aplica con un RNG independiente del generador principal para no
+    alterar el resto del dataset: mismos conteos, estados, timestamps y
+    eventos que sin este paso.
+    """
+    misiones["motivo_rechazo"] = ""
+
+    ids_stv = set(equipos.loc[equipos["tipo"] == "STV", "id"])
+    ids_anillo = equipos.loc[equipos["zona"] == "anillo", "id"].to_numpy()
+
+    mask = (misiones["estado"] == "rechazada") & misiones["id_equipo"].isin(ids_stv)
+    n = int(mask.sum())
+    if n == 0:
+        return misiones
+
+    inspectores = rng.integers(1, N_INSPECTORES + 1, size=n)
+    misiones.loc[mask, "id_equipo"]        = rng.choice(ids_anillo, size=n)
+    misiones.loc[mask, "posicion_inicial"] = [f"INSP-{i:02d}" for i in inspectores]
+    misiones.loc[mask, "posicion_final"]   = POS_RECHAZO
+    misiones.loc[mask, "motivo_rechazo"]   = rng.choice(
+        MOTIVOS_RECHAZO, size=n, p=P_MOTIVOS_RECHAZO
+    )
+    return misiones
+
+
+def asignar_pedidos_expedicion(
+    misiones: pd.DataFrame,
+    equipos:  pd.DataFrame,
+    rng:      np.random.Generator,
+) -> pd.DataFrame:
+    """
+    Post-procesado de las misiones completadas del anillo (expedición).
+
+    Todos los pedidos de expedición son iguales: un trailer completo de
+    28 pallets. Los STV del anillo tienen cuna simple (1 pallet/misión), así
+    que un trailer son 28 misiones. La expedición carga varios trailers en
+    paralelo: cada misión se asigna a uno de los muelles y cada muelle llena
+    sus trailers secuencialmente en orden cronológico, de modo que cualquier
+    STV del anillo puede transportar pallets del mismo pedido. El tiempo de
+    completado del pedido es el intervalo entre el inicio de su primera misión
+    y el fin de la última. Las misiones sobrantes al cierre del año (trailer
+    sin completar en cada muelle) quedan sin pedido.
+
+    Se aplica con un RNG independiente del generador principal para no
+    alterar el resto del dataset: mismos conteos, estados, timestamps y
+    eventos que sin este paso.
+    """
+    misiones["id_pedido"] = ""
+    misiones["muelle"] = ""
+    misiones["origen_pasillo"] = ""
+
+    ids_anillo = set(equipos.loc[equipos["zona"] == "anillo", "id"])
+    mask = (misiones["estado"] == "completada") & misiones["id_equipo"].isin(ids_anillo)
+    if not mask.any():
+        return misiones
+
+    sub = misiones.loc[mask, ["ts_inicio"]].sort_values("ts_inicio")
+    n = len(sub)
+
+    # Muelle aleatorio por misión; dentro de cada muelle, trailers de
+    # MISIONES_POR_PEDIDO misiones consecutivas en el tiempo.
+    muelle = rng.integers(0, N_MUELLES_EXPEDICION, size=n)
+    etiqueta = np.full(n, -1, dtype=np.int64)
+    pedido_global = 0
+    for m in range(N_MUELLES_EXPEDICION):
+        pos = np.flatnonzero(muelle == m)
+        k = len(pos) // MISIONES_POR_PEDIDO
+        completos = pos[: k * MISIONES_POR_PEDIDO]
+        etiqueta[completos] = pedido_global + np.repeat(np.arange(k), MISIONES_POR_PEDIDO)
+        pedido_global += k
+
+    # Renumerar cronológicamente (por la primera misión de cada pedido)
+    asignados = etiqueta >= 0
+    primera = (
+        pd.Series(np.flatnonzero(asignados))
+        .groupby(etiqueta[asignados]).min().sort_values()
+    )
+    mapa = {et: f"PED-{i + 1:06d}" for i, et in enumerate(primera.index)}
+    valores = np.full(n, "", dtype=object)
+    valores[asignados] = pd.Series(etiqueta[asignados]).map(mapa).to_numpy()
+
+    # Muelle como etiqueta legible (M-1..M-6); solo en las misiones con pedido,
+    # para que la columna no sugiera muelle en misiones sueltas sin trailer.
+    muelle_lbl = np.full(n, "", dtype=object)
+    muelle_lbl[asignados] = [f"M-{m + 1}" for m in muelle[asignados]]
+
+    # Pasillo SRM de origen de cada misión con pedido: el pallet se extrajo de
+    # un pasillo del almacén (P01..P08, un SRM por pasillo) antes de llegar al
+    # anillo. Permite el análisis de extremo a extremo origen→muelle.
+    origen = np.full(n, "", dtype=object)
+    pasillos = rng.integers(1, N_PASILLOS + 1, size=int(asignados.sum()))
+    origen[asignados] = [f"P{p:02d}" for p in pasillos]
+
+    misiones.loc[sub.index, "id_pedido"] = valores
+    misiones.loc[sub.index, "muelle"] = muelle_lbl
+    misiones.loc[sub.index, "origen_pasillo"] = origen
+    return misiones
+
+
+def aplicar_paradas_a_pedidos(
+    misiones: pd.DataFrame,
+    eventos:  pd.DataFrame,
+    equipos:  pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Post-procesado: el tiempo de completado de un pedido se alarga por las paradas
+    que afectan a su recorrido de extremo a extremo, en dos etapas:
+
+    1. **Anillo (STV)**: los STV trabajan EN SERIE en un mismo circuito, así que
+       la avería de cualquier STV detiene el flujo y afecta a TODOS los pedidos
+       que se cargan en ese momento.
+    2. **Traslos (SRM) de origen**: cada pallet del pedido se extrajo de un pasillo
+       (`origen_pasillo` → SRM-xx). Si ese SRM está parado durante la ventana del
+       pedido, el pallet no llega a tiempo y retrasa el pedido. Solo afecta a los
+       pedidos cuyos pallets vienen de ese pasillo.
+
+    Para cada pedido se toma la UNIÓN de los intervalos de avería de
+    (todos los STV del anillo) ∪ (los SRM de sus orígenes) solapados con su ventana
+    [primera misión .. última] —averías simultáneas no cuentan doble— y ese retraso
+    desplaza el `ts_fin` de su última misión, de modo que el tiempo de completado
+    que calcula la app crece.
+
+    Determinista (no usa RNG): el retraso sale del solape real avería×ventana.
+    Solo toca misiones de anillo con pedido; el resto del dataset no cambia.
+    """
+    if "id_pedido" not in misiones.columns:
+        return misiones
+
+    ids_anillo = set(equipos.loc[equipos["zona"] == "anillo", "id"])
+    mask_ped = (
+        (misiones["estado"] == "completada")
+        & misiones["id_equipo"].isin(ids_anillo)
+        & misiones["id_pedido"].astype(str).str.startswith("PED-")
+    )
+    if not mask_ped.any():
+        return misiones
+
+    cols = ["id_pedido", "ts_inicio", "ts_fin"]
+    if "origen_pasillo" in misiones.columns:
+        cols.append("origen_pasillo")
+    sub = misiones.loc[mask_ped, cols].copy()
+
+    # Averías resueltas, separadas por origen: STV del anillo (comunes a todos los
+    # pedidos, circuito en serie) y SRM (por pasillo de origen del pallet).
+    ev = eventos[eventos["ts_recuperacion"].notna()].copy()
+    ev_stv = ev[ev["id_equipo"].isin(ids_anillo)]
+    averias_stv = sorted(zip(ev_stv["ts_inicio_fallo"].tolist(),
+                             ev_stv["ts_recuperacion"].tolist()))
+    av_stv_ini = [a[0] for a in averias_stv]
+
+    # Averías de SRM indexadas por pasillo (SRM-03 sirve el pasillo P03).
+    averias_por_pasillo: dict[str, list] = {}
+    if "origen_pasillo" in sub.columns:
+        ev_srm = ev[ev["id_equipo"].astype(str).str.startswith("SRM-")].copy()
+        ev_srm["pasillo"] = "P" + ev_srm["id_equipo"].str.extract(r"SRM-(\d+)")[0]
+        for pas, g in ev_srm.groupby("pasillo"):
+            averias_por_pasillo[pas] = sorted(
+                zip(g["ts_inicio_fallo"].tolist(), g["ts_recuperacion"].tolist())
+            )
+
+    ped = sub.groupby("id_pedido").agg(
+        ts_ini=("ts_inicio", "min"),
+        ts_fin=("ts_fin", "max"),
+    ).sort_values("ts_ini")
+    pasillos_por_pedido = (
+        sub.groupby("id_pedido")["origen_pasillo"].agg(set)
+        if "origen_pasillo" in sub.columns else {}
+    )
+
+    if not averias_stv and not averias_por_pasillo:
+        return misiones
+
+    retraso_s: dict[str, float] = {}
+    for pid, row in ped.iterrows():
+        p_ini, p_fin = row["ts_ini"], row["ts_fin"]
+        # STV del anillo: candidatas acotadas por el inicio antes del fin del pedido.
+        hi = bisect.bisect_right(av_stv_ini, p_fin)
+        candidatas = [a for a in averias_stv[:hi] if a[1] > p_ini]
+        # SRM de los pasillos de origen de este pedido.
+        for pas in pasillos_por_pedido.get(pid, ()):
+            candidatas += [
+                a for a in averias_por_pasillo.get(pas, ())
+                if a[0] < p_fin and a[1] > p_ini
+            ]
+        s = union_solape_segundos(candidatas, p_ini, p_fin)
+        if s > 0:
+            retraso_s[pid] = s
+
+    if not retraso_s:
+        return misiones
+
+    # Aplicar el retraso al ts_fin de la última misión de cada pedido afectado.
+    sub_aff = sub[sub["id_pedido"].isin(retraso_s)]
+    idx_ultima = sub_aff.groupby("id_pedido")["ts_fin"].idxmax()
+    for pid, idx in idx_ultima.items():
+        misiones.at[idx, "ts_fin"] = (
+            misiones.at[idx, "ts_fin"] + pd.Timedelta(seconds=retraso_s[pid])
+        )
+    return misiones
+
+
 # ---------------------------------------------------------------------------
 # Orquestación reutilizable
 # ---------------------------------------------------------------------------
@@ -298,13 +544,32 @@ def generar_dataset(salida, semilla: int = 42, verbose: bool = False) -> None:
 
     _log("Generando misiones...", end=" ", flush=True)
     mis = generar_misiones(eq, rng)
-    mis.to_csv(salida / "misiones.csv", index=False, encoding="utf-8")
     _log(f"{len(mis):,} registros")
 
     _log("Generando eventos_incidencia...", end=" ", flush=True)
     ev = generar_eventos(mis, te, eq, rng)
-    ev.to_csv(salida / "eventos_incidencia.csv", index=False, encoding="utf-8")
     _log(f"{len(ev):,} registros")
+
+    # RNG aparte: no perturba el stream principal (mismas cifras agregadas)
+    _log("Asignando rechazos a la inspección de recepción...", end=" ", flush=True)
+    rng_rechazos = np.random.default_rng(semilla + 1)
+    mis = asignar_rechazos_inspeccion(mis, eq, rng_rechazos)
+    _log(f"{int((mis['motivo_rechazo'] != '').sum()):,} rechazos")
+
+    # RNG aparte por el mismo motivo: solo añade columnas de pedido
+    _log("Agrupando la expedición en pedidos...", end=" ", flush=True)
+    rng_pedidos = np.random.default_rng(semilla + 2)
+    mis = asignar_pedidos_expedicion(mis, eq, rng_pedidos)
+    _log(f"{mis.loc[mis['id_pedido'] != '', 'id_pedido'].nunique():,} pedidos")
+
+    # Las paradas de los STV del anillo alargan el completado de los pedidos que
+    # cargaban en ese momento (determinista, a partir del solape avería×pedido).
+    _log("Aplicando paradas al tiempo de completado de pedidos...", end=" ", flush=True)
+    mis = aplicar_paradas_a_pedidos(mis, ev, eq)
+    _log("hecho")
+
+    mis.to_csv(salida / "misiones.csv", index=False, encoding="utf-8")
+    ev.to_csv(salida / "eventos_incidencia.csv", index=False, encoding="utf-8")
 
     _log(f"\nDatos escritos en: {salida.resolve()}")
 

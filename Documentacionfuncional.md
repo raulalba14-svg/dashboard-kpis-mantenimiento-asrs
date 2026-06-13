@@ -75,11 +75,17 @@ Registro de cada movimiento ejecutado por un equipo.
 |---|---|---|
 | `id_mision` | int | Identificador único |
 | `id_equipo` | str | FK a `equipos.id` |
-| `posicion_inicial` | str | Coordenada/ubicación de origen |
-| `posicion_final` | str | Coordenada/ubicación de destino |
+| `posicion_inicial` | str | Coordenada/ubicación de origen (en rechazos, inspector `INSP-xx`) |
+| `posicion_final` | str | Coordenada/ubicación de destino (en rechazos, `RECHAZO`) |
 | `ts_inicio` | datetime | Inicio de la misión |
 | `ts_fin` | datetime | Fin de la misión |
-| `estado` | str | `completada` / `abortada` |
+| `estado` | str | `completada` / `abortada` / `rechazada` (solo STV) |
+| `motivo_rechazo` | str | Solo en misiones rechazadas: `fuera_de_dimensiones` / `exceso_de_peso` / `hueco_pallet_incorrecto`. Vacío en el resto (Módulo 4) |
+| `id_pedido` | str | Solo en misiones de expedición completadas del anillo: trailer `PED-xxxxxx` al que pertenece la misión. Vacío en el resto (Módulo 5) |
+| `muelle` | str | Muelle de expedición `M-1..M-6` del pedido. Vacío fuera de expedición (Módulo 5) |
+| `origen_pasillo` | str | Pasillo `P01..P08` del que se extrajo el pallet antes de llegar al anillo (Módulo 5) |
+
+> **Nota — columnas de rechazo y expedición:** `motivo_rechazo`, `id_pedido`, `muelle` y `origen_pasillo` se añaden en post-procesados del generador con RNG independientes (semilla+1 para rechazos, semilla+2 para pedidos). No alteran los conteos, estados ni timestamps del resto del dataset: los KPIs de los módulos 0–3 y 6 no cambian por su presencia.
 
 ### 2.4. Tabla `tipos_error`
 
@@ -168,7 +174,10 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
   1. Fallos por pasillo y equipo
   2. Rendimiento de transelevadores SRM
   3. Rendimiento de los STV del anillo
+  4. Obstrucciones y rechazos
+  5. Expedición y rendimiento del anillo
   6. Comparativa de periodos
+  7. Acerca del proyecto
 ```
 
 ### 4.1. Filtros comunes
@@ -251,7 +260,50 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 9. Módulo 4 — Comparativa de periodos ✅
+## 9. Módulo 4 — Obstrucciones y rechazos ✅
+
+**Propósito:** analizar los rechazos de pallets de la inspección de recepción, que tienen una doble dimensión.
+
+- **Dimensión de mantenimiento:** rechazos por sensores del inspector descalibrados. Son fallos corregibles que generan falsos rechazos.
+- **Dimensión operativa:** saturación del flujo. Reducir rechazos libera capacidad del anillo.
+
+**Qué visualiza:**
+- **Tasa de rechazo vs. objetivo:** medidor (gauge) de la tasa global frente al objetivo del 2% (verde por debajo, ámbar hasta 3,5%, rojo por encima), con tarjetas de misiones totales y rechazadas.
+- **Inspección de recepción:** rechazos por inspector (origen `INSP-xx`) y motivo del rechazo (fuera de dimensiones, exceso de peso, hueco de pallet incorrecto), como barras y donut.
+- Evolución mensual de la tasa de rechazo (siempre a año completo) y del nº de rechazos por motivo.
+
+**Cálculos:**
+- Filtrado de `misiones` con `estado = rechazada`; agrupación por inspector de origen y por `motivo_rechazo`.
+- Tasa de rechazo = nº rechazos / nº misiones (`src/kpis.py::tasa_rechazo`).
+
+> Nota de modelo: el rechazo nace en un puesto de inspección genérico de recepción (`posicion_inicial = INSP-01..04`) y un STV del anillo lo transporta al puesto de rechazo (`posicion_final = RECHAZO`), con su `motivo_rechazo`. La columna `motivo_rechazo` se añade en un post-procesado del generador con un RNG independiente (semilla+1): solo afecta a las misiones rechazadas, sin alterar el resto del dataset.
+
+**Filtros:** ámbito fijo `STV · anillo único`; solo aplica el rango de fechas.
+
+---
+
+## 10. Módulo 5 — Expedición y rendimiento del anillo ✅
+
+**Propósito:** medir el rendimiento de la expedición desde la óptica del cliente interno: cuánto tarda **cada pedido** en completar su transporte de salida.
+
+**Qué visualiza:**
+- KPIs de pedido: pedidos (trailers) completados, tiempo medio de completado, P95, pallets expedidos y throughput (pallets/hora).
+- Tiempo medio de carga por muelle y franja horaria (tabla con semáforo relativo a la media).
+- **Diagnóstico de retrasos:** para cada pedido, los minutos de parada del anillo (STV en serie) y de los SRM de origen que retrasan su completado, con detalle por pedido.
+
+**Cálculos:**
+- Pedido de expedición: todos los pedidos son iguales — un **trailer completo de 28 pallets**. Los STV del anillo tienen **cuna simple** (1 pallet por misión), de modo que un trailer son 28 misiones, identificado por `id_pedido` en `misiones`. La expedición carga en paralelo en 6 muelles (`M-1..M-6`); cada muelle llena sus trailers secuencialmente.
+- Tiempo de completado del pedido = fin de su última misión − inicio de la primera.
+- Throughput = pallets expedidos / tiempo (1 pallet por misión completada).
+- Retraso de un pedido = unión (`src/intervalos.py::union_solape_segundos`) de las paradas del anillo y de los SRM de origen solapadas con su ventana de carga.
+
+> Nota de modelo: `id_pedido`, `muelle` y `origen_pasillo` se asignan en un post-procesado del generador con un RNG independiente (semilla+2). Las paradas a pedidos se aplican de forma determinista a partir del solape avería×ventana.
+
+**Filtros:** ámbito fijo `STV · anillo único`; solo aplica el rango de fechas.
+
+---
+
+## 11. Módulo 6 — Comparativa de periodos ✅
 
 **Propósito:** comparar dos rangos de fechas y medir la variación de los KPIs principales para detectar mejoras, regresiones o estacionalidad.
 
@@ -265,9 +317,9 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 10. Notas de implementación para el desarrollo
+## 12. Notas de implementación para el desarrollo
 
-- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — ~0,94 M misiones · ~2.170 eventos · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con tests.
+- **Generador de datos simulados:** ✅ `scripts/generar_datos.py` — ~0,94 M misiones · ~2.200 eventos · rechazos de inspección · pedidos de expedición · estacionalidad · correlación ciclos↔fallos · coherencia temporal verificada con tests.
 - **Capa de cálculo separada de la capa de visualización:** ✅ `src/kpis.py` — funciones puras de pandas, tests unitarios verdes, cero `import streamlit`.
 - **Cacheo:** `@st.cache_data` aplicado mediante `st.cache_data(cargar_tablas)` en cada página, manteniendo `src/data_loader.py` libre de dependencias de Streamlit.
 - **Internacionalización de unidades:** parámetro global `UNIDAD_TIEMPO` en `src/config.py` para mostrar tiempos en minutos u horas.
