@@ -219,10 +219,10 @@ def rendimiento_stv(
 
 
 # ---------------------------------------------------------------------------
-# Módulo 4 — Obstrucciones y rechazos
+# Módulo 4 — Rechazos
 # ---------------------------------------------------------------------------
 
-def obstrucciones_rechazos(
+def rechazos(
     misiones: pd.DataFrame,
     eventos: pd.DataFrame,
 ) -> str:

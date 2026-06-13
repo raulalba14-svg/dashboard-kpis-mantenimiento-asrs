@@ -78,7 +78,7 @@ descargables en CSV desde la propia app:
 | **Fallos por zona y equipo** | ¿Dónde se concentran las averías? ¿Qué código de error domina? |
 | **Rendimiento SRM** | ¿Cómo está cada transelevador? ¿La carga explica sus fallos? |
 | **Rendimiento STV** | ¿Cómo está el anillo de vehículos? ¿Hay uno que frene al resto? |
-| **Obstrucciones y rechazos** | ¿Cuántos pallets rechaza la inspección y por qué motivo? |
+| **Rechazos** | ¿Cuántos pallets rechaza la inspección y por qué motivo? |
 | **Expedición** | ¿Cuánto tarda cada pedido en completarse y dónde están los cuellos de botella? |
 | **Comparativa de periodos** | ¿Voy mejor o peor que antes? ¿Qué equipos han regresado? |
 | **Acerca del proyecto** | Contexto, alcance del dataset y roadmap. |

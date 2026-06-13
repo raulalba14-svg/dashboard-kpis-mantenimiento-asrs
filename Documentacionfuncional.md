@@ -174,7 +174,7 @@ Aplicación Streamlit multipágina. Barra lateral (`st.sidebar`) persistente con
   1. Fallos por pasillo y equipo
   2. Rendimiento de transelevadores SRM
   3. Rendimiento de los STV del anillo
-  4. Obstrucciones y rechazos
+  4. Rechazos
   5. Expedición y rendimiento del anillo
   6. Comparativa de periodos
   7. Acerca del proyecto
@@ -260,7 +260,7 @@ Todos los módulos incluyen una vista de evolución temporal (serie mensual a lo
 
 ---
 
-## 9. Módulo 4 — Obstrucciones y rechazos ✅
+## 9. Módulo 4 — Rechazos ✅
 
 **Propósito:** analizar los rechazos de pallets de la inspección de recepción, que tienen una doble dimensión.
 

@@ -1,4 +1,4 @@
-"""Módulo 4 — Obstrucciones y rechazos."""
+"""Módulo 4 — Rechazos."""
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -18,12 +18,12 @@ from src.styles import inyectar_css, hero, lectura_ejecutiva
 from src.config import init_session_state, rango_valido
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
-from src.insights import obstrucciones_rechazos
+from src.insights import rechazos
 from src.export import panel_exportacion
 from src.format import fmt_es
 
 st.set_page_config(
-    page_title="Obstrucciones y rechazos",
+    page_title="Rechazos",
     page_icon=str(FAVICON) if FAVICON.exists() else None,
     layout="wide",
 )
@@ -40,7 +40,7 @@ if not rango_valido(rango):
 
 hero(
     kicker="Módulo 4",
-    titulo="Obstrucciones y rechazos",
+    titulo="Rechazos",
     subtitulo=(
         "Análisis de la inspección de pallets en recepción: dónde y por qué se "
         "rechazan los pallets, y cómo evoluciona la tasa en el tiempo."
@@ -115,7 +115,7 @@ st.caption(
     "encima."
 )
 
-lectura_ejecutiva(obstrucciones_rechazos(misiones, eventos))
+lectura_ejecutiva(rechazos(misiones, eventos))
 
 st.divider()
 

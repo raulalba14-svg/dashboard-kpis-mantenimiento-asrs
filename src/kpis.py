@@ -167,7 +167,7 @@ def tiempo_ciclo(
 
 
 # ---------------------------------------------------------------------------
-# Tasa de rechazo  (Módulo 4 — Obstrucciones y rechazos)
+# Tasa de rechazo  (Módulo 4 — Rechazos)
 # ---------------------------------------------------------------------------
 
 def tasa_rechazo(
