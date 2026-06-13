@@ -155,10 +155,11 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 def _delta_card(label, val_a, val_b, decimales=2, sufijo="", mejor="alto"):
-    """Renderiza una tarjeta con valor A, valor B y delta coloreado.
+    """Renderiza una tarjeta comparativa A vs B con mini-barras y chip de delta.
 
-    Los valores se muestran en formato español (punto de miles, coma decimal)
-    con `decimales` decimales.
+    Las dos barras se escalan contra el mayor de los dos valores de la propia
+    tarjeta, de modo que su longitud relativa refleja la diferencia A↔B.
+    Los números se muestran en formato español (punto de miles, coma decimal).
     """
     delta = val_b - val_a
     if mejor == "alto":
@@ -168,34 +169,44 @@ def _delta_card(label, val_a, val_b, decimales=2, sufijo="", mejor="alto"):
     color = EXITO if signo_ok else CRITICO
     flecha = "▲" if delta > 0 else ("▼" if delta < 0 else "■")
     signo = "+" if delta > 0 else ""
-    return f"""
-    <div style="background:#FFFFFF;border:1px solid #E4E7EC;border-radius:12px;
-                padding:16px 20px;box-shadow:0 1px 2px rgba(16,24,40,0.05);">
-        <div style="color:{GRIS_500};font-size:0.72rem;font-weight:600;
-                    text-transform:uppercase;letter-spacing:0.04em;">{label}</div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;
-                    margin-top:8px;gap:14px;">
-            <div>
-                <div style="color:{GRIS_500};font-size:0.7rem;">A</div>
-                <div style="color:#101828;font-size:1.25rem;font-weight:600;">
-                    {fmt_es(val_a, decimales)}{sufijo}
-                </div>
-            </div>
-            <div>
-                <div style="color:{GRIS_500};font-size:0.7rem;">B</div>
-                <div style="color:#101828;font-size:1.25rem;font-weight:600;">
-                    {fmt_es(val_b, decimales)}{sufijo}
-                </div>
-            </div>
-            <div style="text-align:right;">
-                <div style="color:{GRIS_500};font-size:0.7rem;">Δ</div>
-                <div style="color:{color};font-size:1.05rem;font-weight:700;">
-                    {flecha} {signo}{fmt_es(delta, decimales)}{sufijo}
-                </div>
-            </div>
-        </div>
-    </div>
-    """
+
+    # Barras proporcionales al mayor de los dos valores de la tarjeta.
+    ref = max(abs(val_a), abs(val_b)) or 1.0
+    pct_a = max(0.0, min(100.0, abs(val_a) / ref * 100))
+    pct_b = max(0.0, min(100.0, abs(val_b) / ref * 100))
+
+    # HTML compacto en una sola línea: si dejamos saltos de línea con sangría,
+    # el parser de Markdown de st.markdown lo interpreta como bloque de código
+    # y lo muestra como texto crudo en lugar de renderizarlo.
+    def _fila(letra, valor, pct, color_barra):
+        return (
+            '<div style="display:flex;align-items:center;gap:10px;margin-top:7px;">'
+            f'<div style="color:{GRIS_500};font-size:0.7rem;width:12px;flex:none;'
+            f'font-weight:600;">{letra}</div>'
+            '<div style="flex:1;background:#F2F4F7;border-radius:6px;height:9px;'
+            'overflow:hidden;">'
+            f'<div style="width:{pct:.1f}%;background:{color_barra};height:100%;'
+            'border-radius:6px;"></div></div>'
+            '<div style="color:#101828;font-size:1.05rem;font-weight:600;'
+            'white-space:nowrap;text-align:right;min-width:84px;">'
+            f'{fmt_es(valor, decimales)}{sufijo}</div>'
+            '</div>'
+        )
+
+    return (
+        '<div style="background:#FFFFFF;border:1px solid #E4E7EC;border-radius:12px;'
+        'padding:16px 20px;box-shadow:0 1px 2px rgba(16,24,40,0.05);">'
+        '<div style="display:flex;justify-content:space-between;align-items:center;">'
+        f'<div style="color:{GRIS_500};font-size:0.72rem;font-weight:600;'
+        f'text-transform:uppercase;letter-spacing:0.04em;">{label}</div>'
+        f'<div style="background:{color}1A;color:{color};font-size:0.82rem;'
+        'font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;">'
+        f'{flecha} {signo}{fmt_es(delta, decimales)}{sufijo}</div>'
+        '</div>'
+        f'{_fila("A", val_a, pct_a, PRIMARIO_CLARO)}'
+        f'{_fila("B", val_b, pct_b, PRIMARIO)}'
+        '</div>'
+    )
 
 
 c1, c2 = st.columns(2)
