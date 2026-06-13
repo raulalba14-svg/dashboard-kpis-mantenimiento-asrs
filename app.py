@@ -261,17 +261,27 @@ def _card_button(key: str, icono: str, titulo: str, descripcion: str, page: str)
             st.switch_page(page)
 
 
-# Layout: módulos navegables en filas de 3 columnas (0,1,2 · 3,4,5 · 6)
-for fila_inicio in range(0, len(_CARDS), 3):
-    cols = st.columns(3, gap="medium")
-    for col, card in zip(cols, _CARDS[fila_inicio:fila_inicio + 3]):
-        with col:
-            _card_button(*card[:5])
+# Layout: 3 columnas × 2 filas para los módulos 0-5 + fila final con comparativa
+col1, col2, col3 = st.columns(3, gap="medium")
+with col1:
+    _card_button(*_CARDS[0][:5])
+    _card_button(*_CARDS[3][:5])
+with col2:
+    _card_button(*_CARDS[1][:5])
+    _card_button(*_CARDS[4][:5])
+with col3:
+    _card_button(*_CARDS[2][:5])
+    _card_button(*_CARDS[5][:5])
+
+st.markdown("")
+_, col_comp, _ = st.columns([1, 2, 1], gap="medium")
+with col_comp:
+    _card_button(*_CARDS[6][:5])
 
 st.markdown("")
 st.markdown(
     f"<div style='color:{GRIS_700};font-size:0.9rem;margin-top:1rem;'>"
-    "💡 Usa el menú superior de Streamlit para navegar entre módulos. "
+    "💡 Usa el menú lateral para navegar entre módulos. "
     "Los filtros del sidebar persisten entre páginas. "
     "Más contexto en <b>Acerca del proyecto</b>."
     "</div>",
