@@ -994,6 +994,81 @@ def evolucion_lineas_categoria(
     return fig
 
 
+def evolucion_multilinea_con_media(
+    series: dict[str, pd.Series],
+    titulo: str = "",
+    label_y: str = "",
+    color_media: str = PRIMARIO,
+    destacar: str | None = None,
+    color_destacado: str = CRITICO,
+) -> go.Figure:
+    """
+    Muchas series mensuales superpuestas: cada una en gris claro de fondo
+    (contexto de dispersión) y la media de todas destacada en color.
+
+    `series` es un dict {etiqueta: serie mensual indexada por mes 1..12}.
+    Pensado para flotas (p. ej. los SRM) donde una leyenda por línea sería
+    ilegible: el hover identifica cada línea individual.
+
+    Si `destacar` coincide con una etiqueta, esa línea se pinta en
+    `color_destacado`, gruesa y con leyenda, por encima de la nube gris.
+    """
+    meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+    x_meses = list(range(1, 13))
+    x_labels = [meses[i - 1] for i in x_meses]
+
+    fig = go.Figure()
+
+    # Líneas individuales atenuadas (sin leyenda; identificables por hover)
+    for etiqueta, serie in series.items():
+        if etiqueta == destacar:
+            continue  # la destacada se dibuja al final, por encima
+        s = serie.reindex(x_meses)
+        fig.add_trace(go.Scatter(
+            x=x_labels, y=s.values,
+            mode="lines",
+            line=dict(color=GRIS_300, width=1),
+            opacity=0.6,
+            name=etiqueta,
+            showlegend=False,
+            hovertemplate=f"<b>{etiqueta}</b><br>%{{x}}: %{{y:.2f}}<extra></extra>",
+        ))
+
+    # Media de la flota (ignora NaN mes a mes)
+    if series:
+        df = pd.DataFrame({e: s.reindex(x_meses) for e, s in series.items()})
+        media = df.mean(axis=1)
+        fig.add_trace(go.Scatter(
+            x=x_labels, y=media.values,
+            mode="lines+markers",
+            name="Media de la flota",
+            line=dict(color=color_media, width=3.5),
+            marker=dict(size=8, color=color_media, line=dict(color="white", width=1.5)),
+            hovertemplate="<b>Media flota</b><br>%{x}: %{y:.2f}<extra></extra>",
+        ))
+
+    # Línea destacada por encima de todo
+    if destacar is not None and destacar in series:
+        s = series[destacar].reindex(x_meses)
+        fig.add_trace(go.Scatter(
+            x=x_labels, y=s.values,
+            mode="lines+markers",
+            name=destacar,
+            line=dict(color=color_destacado, width=3.5),
+            marker=dict(size=8, color=color_destacado, line=dict(color="white", width=1.5)),
+            hovertemplate=f"<b>{destacar}</b><br>%{{x}}: %{{y:.2f}}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title=titulo,
+        xaxis_title="",
+        yaxis_title=label_y,
+        legend=dict(orientation="h", y=1.08, x=0),
+        height=360,
+    )
+    return fig
+
+
 def kpi_card_html(label: str, valor: str, delta: str | None = None,
                   delta_positivo: bool | None = None,
                   icono: str = "") -> str:
