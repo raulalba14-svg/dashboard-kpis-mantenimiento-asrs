@@ -11,7 +11,7 @@ from src.sidebar import render_sidebar_filtros
 from src.config import init_session_state
 from src.branding import (
     FAVICON, pie_pagina, logo_inline,
-    AUTOR, PROYECTO, CONTEXTO_ACADEMICO, ANYO, VERSION,
+    AUTOR, PROYECTO, CONTEXTO, ANYO, VERSION,
 )
 
 st.set_page_config(
@@ -48,7 +48,7 @@ with col_id:
                 {PROYECTO}
             </div>
             <div style="color:{GRIS_700};font-size:1rem;margin-top:4px;">
-                Autor: <b>{AUTOR}</b> · {CONTEXTO_ACADEMICO} · {ANYO} · {VERSION}
+                Autor: <b>{AUTOR}</b> · {CONTEXTO} · {ANYO} · {VERSION}
             </div>
         </div>
         """,
@@ -89,8 +89,8 @@ with col_p:
         los transforme en indicadores accionables. La consecuencia: las
         decisiones de mantenimiento se toman por intuición, no por dato.
 
-        Esta herramienta cierra ese hueco. La motivación es operativa, no
-        académica: reducir paros no programados, anticipar fallos y priorizar
+        Esta herramienta cierra ese hueco. La motivación es puramente
+        operativa: reducir paros no programados, anticipar fallos y priorizar
         ventanas de mantenimiento basándose en evidencia cuantitativa.
         """
     )
@@ -214,7 +214,7 @@ with col_metrics:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Roadmap (atemporal, sin "TFC")
+# Roadmap
 # ---------------------------------------------------------------------------
 
 st.markdown(f"<h3 style='color:{PRIMARIO};'>Roadmap</h3>", unsafe_allow_html=True)

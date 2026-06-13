@@ -21,7 +21,7 @@ from src.theme import GRIS_500, GRIS_300
 
 AUTOR = "Raúl Alba"
 PROYECTO = "ASRS Analytics"
-CONTEXTO_ACADEMICO = "TFC · Ciclo Superior de Robótica"
+CONTEXTO = "Análisis de datos AS/RS"
 ANYO = 2026
 VERSION = "v1.0"
 CLAIM = "Del log del WMS a la decisión de mantenimiento"
@@ -74,7 +74,7 @@ def pie_pagina() -> None:
         + f"""
 <div class="asrs-footer">
     <div class="asrs-footer__left">
-        {PROYECTO} · {AUTOR} · {CONTEXTO_ACADEMICO} · {ANYO}
+        {PROYECTO} · {AUTOR} · {CONTEXTO} · {ANYO}
     </div>
     <div class="asrs-footer__right">
         Demo · datos simulados · {VERSION}

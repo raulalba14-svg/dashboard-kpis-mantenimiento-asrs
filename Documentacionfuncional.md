@@ -142,7 +142,7 @@ Equivalente operacional:
 Disponibilidad(equipo) = tiempo_operativo / tiempo_total_del_periodo
 ```
 
-Se expresa en porcentaje. Es el indicador resumen que el tribunal y la dirección leen primero.
+Se expresa en porcentaje. Es el indicador resumen que la dirección lee primero.
 
 ### 3.4. Ciclos
 
