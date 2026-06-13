@@ -27,14 +27,39 @@ SEMILLA_DATASET = 42
 _GENERADOR = ROOT_DIR / "scripts" / "generar_datos.py"
 
 
+# Columnas que el generador actual añade a misiones.csv (rechazos de inspección
+# y pedidos de expedición). Un dataset persistido por un generador anterior no
+# las tiene: se considera obsoleto y se regenera, igual que uno corrupto.
+_COLUMNAS_MISIONES_REQUERIDAS = {
+    "motivo_rechazo", "id_pedido", "muelle", "origen_pasillo",
+}
+
+
 def datos_disponibles() -> bool:
-    """True si los 4 CSV requeridos existen y son válidos (fechas parseables)."""
+    """True si los 4 CSV requeridos existen, son válidos y tienen el esquema actual."""
     if not all(
         p.exists()
         for p in (EQUIPOS_CSV, TIPOS_ERROR_CSV, MISIONES_CSV, EVENTOS_CSV)
     ):
         return False
-    return _csv_eventos_valido()
+    return _csv_eventos_valido() and _csv_misiones_esquema_actual()
+
+
+def _csv_misiones_esquema_actual() -> bool:
+    """
+    True si misiones.csv tiene las columnas del generador actual.
+
+    Defensa ante un dataset persistido por un generador anterior (p. ej.
+    Streamlit Cloud, que conserva el `data/` generado entre reinicios): si le
+    faltan las columnas de rechazos/pedidos, los módulos 4 y 5 saldrían vacíos.
+    Lo tratamos como no disponible para forzar su regeneración con el generador
+    actual. Solo lee la cabecera (nrows=0), es barato.
+    """
+    try:
+        cols = set(pd.read_csv(MISIONES_CSV, nrows=0).columns)
+        return _COLUMNAS_MISIONES_REQUERIDAS.issubset(cols)
+    except Exception:
+        return False
 
 
 def _csv_eventos_valido() -> bool:
