@@ -10,15 +10,14 @@ from src.kpis import (
     delta_vs_periodo_anterior, serie_mensual,
 )
 from src.charts import (
-    serie_anual_area, gauge_disponibilidad,
-    sparkline, kpi_card_html,
+    serie_anual_area, gauge_disponibilidad, kpi_card_html,
 )
-from src.theme import (
-    aplicar_tema, PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO,
-    GRIS_500, GRIS_700,
-)
+from src.theme import aplicar_tema
 from src.styles import inyectar_css, hero, lectura_ejecutiva
-from src.config import UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario
+from src.config import (
+    UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario,
+    RANGO_ANUAL,
+)
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
 from src.insights import resumen_general
@@ -89,7 +88,7 @@ rango_tuple = rango_calendario(rango)
 unidad_label = "min" if UNIDAD_TIEMPO == "minutos" else "h"
 
 # ---------------------------------------------------------------------------
-# Cálculos: KPIs + delta + series mensuales para sparklines
+# Cálculos: KPIs + delta + serie mensual de fallos (para exportación)
 # ---------------------------------------------------------------------------
 
 kpis = kpis_globales(eventos, misiones, equipos, rango_tuple, UNIDAD_TIEMPO)
@@ -101,18 +100,10 @@ delta = delta_vs_periodo_anterior(
 
 lectura_ejecutiva(resumen_general(eventos, misiones, equipos, rango_tuple))
 
-# Series mensuales para sparkline
-serie_disp_mensual = disponibilidad_mensual(eventos, rango_tuple)
+# Serie mensual de fallos (se exporta más abajo).
 serie_fallos_mensual = serie_mensual(
     eventos, "ts_inicio_fallo", "id_evento", agg="count"
 )
-
-
-def _fmt_delta_disp(v):
-    if v is None:
-        return None, None
-    sign = "+" if v >= 0 else ""
-    return f"{sign}{fmt_es(v, 2)} pp", v >= 0
 
 
 def _fmt_delta_int(v, sufijo=""):
@@ -131,64 +122,10 @@ def _fmt_delta_mttr(v):
 
 
 # ---------------------------------------------------------------------------
-# Fila 1 — KPIs principales con sparkline (2 cards grandes)
+# Fila 1 — Gauge de disponibilidad + KPIs en rejilla 2×2 (patrón del módulo 2)
 # ---------------------------------------------------------------------------
 
-c1, c2 = st.columns(2)
-
-with c1:
-    st.markdown(
-        f"""
-        <div style="background:#F9FAFB;border:1px solid #E4E7EC;border-radius:12px;
-                    padding:18px 22px;box-shadow:0 1px 2px rgba(16,24,40,0.05);">
-            <div style="color:{GRIS_500};font-size:0.78rem;font-weight:500;
-                        text-transform:uppercase;letter-spacing:0.04em;">
-                Disponibilidad media
-            </div>
-            <div style="color:#101828;font-size:2.2rem;font-weight:700;
-                        line-height:1.1;margin-top:4px;">
-                {fmt_es(kpis['disponibilidad_media'], 2)} %
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.plotly_chart(
-        sparkline(serie_disp_mensual, color=EXITO, altura=70),
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
-
-with c2:
-    st.markdown(
-        f"""
-        <div style="background:#F9FAFB;border:1px solid #E4E7EC;border-radius:12px;
-                    padding:18px 22px;box-shadow:0 1px 2px rgba(16,24,40,0.05);">
-            <div style="color:{GRIS_500};font-size:0.78rem;font-weight:500;
-                        text-transform:uppercase;letter-spacing:0.04em;">
-                Fallos en el periodo
-            </div>
-            <div style="color:#101828;font-size:2.2rem;font-weight:700;
-                        line-height:1.1;margin-top:4px;">
-                {fmt_es(kpis['n_fallos'], 0)}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.plotly_chart(
-        sparkline(serie_fallos_mensual, color=CRITICO, altura=70),
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
-
-st.markdown("")
-
-# ---------------------------------------------------------------------------
-# Fila 2 — KPIs secundarios con delta
-# ---------------------------------------------------------------------------
-
-c3, c4, c5 = st.columns(3)
+st.subheader("Disponibilidad media de la instalación vs. objetivo")
 
 delta_mttr_txt, delta_mttr_pos = _fmt_delta_mttr(delta["delta_mttr_min"])
 delta_ciclos_txt, delta_ciclos_pos = _fmt_delta_int(delta["delta_ciclos"])
@@ -196,50 +133,10 @@ delta_ciclos_txt, delta_ciclos_pos = _fmt_delta_int(delta["delta_ciclos"])
 if delta["delta_ciclos"] is not None:
     delta_ciclos_pos = delta["delta_ciclos"] >= 0
 
-with c3:
-    st.markdown(
-        kpi_card_html(
-            f"MTTR medio ({unidad_label})",
-            fmt_es(kpis['mttr_medio'], 1),
-            delta_mttr_txt,
-            delta_mttr_pos,
-            icono="🛠️",
-        ),
-        unsafe_allow_html=True,
-    )
+# Gauge a la izquierda (más ancho) y las 4 tarjetas KPI en rejilla 2×2 a la derecha.
+c_gauge, c_kpis = st.columns([2, 3])
 
-with c4:
-    st.markdown(
-        kpi_card_html(
-            f"MTBF medio ({unidad_label})",
-            fmt_es(kpis['mtbf_medio'], 0),
-            None, None,
-            icono="⏱️",
-        ),
-        unsafe_allow_html=True,
-    )
-
-with c5:
-    st.markdown(
-        kpi_card_html(
-            "Ciclos totales",
-            fmt_es(kpis['ciclos_totales'], 0),
-            delta_ciclos_txt,
-            delta_ciclos_pos,
-            icono="🔄",
-        ),
-        unsafe_allow_html=True,
-    )
-
-st.divider()
-
-# ---------------------------------------------------------------------------
-# Fila 3 — Gauge + evolución anual de disponibilidad
-# ---------------------------------------------------------------------------
-
-cg, ce = st.columns([1, 2])
-
-with cg:
+with c_gauge:
     fig_gauge = gauge_disponibilidad(
         kpis["disponibilidad_media"],
         referencia=95.0,
@@ -248,20 +145,77 @@ with cg:
     st.plotly_chart(fig_gauge, use_container_width=True,
                     config={"displayModeBar": False})
 
-with ce:
-    fig_evol = serie_anual_area(
-        serie_disp_mensual,
-        titulo="Evolución mensual de la disponibilidad",
-        label_y="Disponibilidad (%)",
-        referencia=float(kpis["disponibilidad_media"]),
-    )
-    st.plotly_chart(fig_evol, use_container_width=True,
-                    config={"displayModeBar": False})
+with c_kpis:
+    k1, k2 = st.columns(2)
+    with k1:
+        st.markdown(
+            kpi_card_html("Fallos en el periodo", fmt_es(kpis['n_fallos'], 0),
+                          icono="⚠️"),
+            unsafe_allow_html=True,
+        )
+    with k2:
+        st.markdown(
+            kpi_card_html(f"MTTR medio ({unidad_label})", fmt_es(kpis['mttr_medio'], 1),
+                          delta_mttr_txt, delta_mttr_pos, icono="🛠️"),
+            unsafe_allow_html=True,
+        )
+    k3, k4 = st.columns(2)
+    with k3:
+        st.markdown(
+            kpi_card_html(f"MTBF medio ({unidad_label})", fmt_es(kpis['mtbf_medio'], 0),
+                          icono="⏱️"),
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(
+            kpi_card_html("Ciclos totales", fmt_es(kpis['ciclos_totales'], 0),
+                          delta_ciclos_txt, delta_ciclos_pos, icono="🔄"),
+            unsafe_allow_html=True,
+        )
+
+st.caption(
+    "**Lectura:** disponibilidad media de la instalación frente al objetivo del "
+    "**95%** (línea negra del medidor). El detalle equipo a equipo está en el "
+    "Top 5 inferior y en los módulos 2 (SRM) y 3 (STV)."
+)
 
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Fila 4 — Top 5 con peor disponibilidad
+# Fila 2 — Evolución anual de la disponibilidad (ancho completo)
+# ---------------------------------------------------------------------------
+
+# Año completo: el rango de fechas del sidebar no aplica a esta gráfica —
+# con un rango corto la curva mensual quedaría sin puntos suficientes. Respeta
+# los filtros de tipo/zona (f_global ya los aplica).
+serie_disp_anual = disponibilidad_mensual(f_global["eventos"], RANGO_ANUAL)
+# Eje Y ajustado a los datos (con 1 pp de margen, acotado a [0, 100]) para
+# que las variaciones mensuales se aprecien en lugar de quedar aplastadas.
+_vals = serie_disp_anual.dropna()
+_rango_y = (
+    (max(0.0, float(_vals.min()) - 1.0), min(100.0, float(_vals.max()) + 1.0))
+    if not _vals.empty else None
+)
+fig_evol = serie_anual_area(
+    serie_disp_anual,
+    titulo="Evolución mensual de la disponibilidad",
+    label_y="Disponibilidad (%)",
+    referencia=float(
+        disponibilidad_por_equipo(f_global["eventos"], RANGO_ANUAL).mean()
+    ),
+    rango_y=_rango_y,
+)
+st.plotly_chart(fig_evol, use_container_width=True,
+                config={"displayModeBar": False})
+st.caption(
+    "**Nota:** esta gráfica muestra siempre el año completo para conservar "
+    "la tendencia mensual; el rango de fechas del sidebar no la recorta."
+)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Fila 3 — Top 5 con peor disponibilidad
 # ---------------------------------------------------------------------------
 
 st.subheader("Top 5 · equipos con peor disponibilidad")
@@ -327,7 +281,7 @@ _datasets_export = {
         "rango_inicio": rango[0].isoformat(),
         "rango_fin": rango[1].isoformat(),
     }]),
-    "Disponibilidad mensual": serie_disp_mensual.rename("disponibilidad_pct")
+    "Disponibilidad mensual": serie_disp_anual.rename("disponibilidad_pct")
                               .reset_index().rename(columns={"index": "mes"}),
     "Fallos mensuales": serie_fallos_mensual.rename("n_fallos")
                         .reset_index().rename(columns={"index": "mes"}),

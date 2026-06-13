@@ -15,6 +15,11 @@ ANO_DATASET = 2025
 FECHA_INICIO = f"{ANO_DATASET}-01-01"
 FECHA_FIN = f"{ANO_DATASET}-12-31"
 
+# Rango del año completo del dataset. Las vistas de evolución mensual lo usan
+# para calcularse siempre sobre los 12 meses, sin que el rango del sidebar las
+# recorte (con un rango corto la curva mensual quedaría sin puntos).
+RANGO_ANUAL = (FECHA_INICIO, FECHA_FIN)
+
 # Rango por defecto al abrir la app: los últimos N días del dataset.
 # Un periodo corto hace visible el semáforo del plano (con el año completo
 # la tasa fallos/día se promedia y todo sale verde).

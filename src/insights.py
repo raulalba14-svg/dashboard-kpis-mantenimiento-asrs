@@ -65,12 +65,12 @@ def resumen_general(
     peor_valor = float(disp.min()) if len(disp) else 100.0
 
     return (
-        f"Disponibilidad media de la instalación: <b>{disp_media:.2f}%</b> — "
-        f"{comparativo} del objetivo del <b>{_OBJETIVO_DISP:.0f}%</b>. "
+        f"Disponibilidad media de la instalación: <b>{fmt_es(disp_media, 2)}%</b> — "
+        f"{comparativo} del objetivo del <b>{fmt_es(_OBJETIVO_DISP, 0)}%</b>. "
         f"{juicio} "
         + (
             f"El equipo más crítico es <b>{peor_equipo}</b> con "
-            f"<b>{peor_valor:.2f}%</b> de disponibilidad."
+            f"<b>{fmt_es(peor_valor, 2)}%</b> de disponibilidad."
             if peor_equipo is not None
             else ""
         )
@@ -109,7 +109,7 @@ def fallos_por_zona(
     n_fallos_top = int(por_equipo.iloc[0])
 
     return (
-        f"El <b>{pct_zona:.0f}%</b> de los fallos se concentra en "
+        f"El <b>{fmt_es(pct_zona, 0)}%</b> de los fallos se concentra en "
         f"<b>{zona_top.replace('_', ' ')}</b>, con <b>{codigo_top}</b> como código de error dominante. "
         f"El equipo con más incidencias es <b>{equipo_top}</b> "
         f"(<b>{n_fallos_top}</b> fallos) — priorizarlo en la próxima ventana de mantenimiento."
@@ -157,23 +157,23 @@ def rendimiento_srm(
     elif corr > 0.4:
         correlacion_msg = (
             " La carga y la tasa de fallo correlacionan positivamente "
-            f"(<b>r={corr:.2f}</b>) — los SRM más solicitados sufren más averías: "
+            f"(<b>r={fmt_es(corr, 2)}</b>) — los SRM más solicitados sufren más averías: "
             "valorar mantenimiento preventivo basado en ciclos."
         )
     elif corr < -0.2:
         correlacion_msg = (
-            f" La carga y la tasa de fallo no correlacionan (<b>r={corr:.2f}</b>); "
+            f" La carga y la tasa de fallo no correlacionan (<b>r={fmt_es(corr, 2)}</b>); "
             "los fallos parecen aleatorios o vinculados a otros factores."
         )
     else:
         correlacion_msg = (
-            f" La carga no explica los fallos (<b>r={corr:.2f}</b>); "
+            f" La carga no explica los fallos (<b>r={fmt_es(corr, 2)}</b>); "
             "buscar causa raíz por código de error en lugar de por uso."
         )
 
     peor = disp.idxmin() if len(disp) else None
     return (
-        f"Disponibilidad media de los SRM: <b>{disp_media:.2f}%</b>. "
+        f"Disponibilidad media de los SRM: <b>{fmt_es(disp_media, 2)}%</b>. "
         + (f"El SRM más crítico es <b>{peor}</b>." if peor else "")
         + correlacion_msg
     )
@@ -211,9 +211,9 @@ def rendimiento_stv(
     )
 
     return (
-        f"Disponibilidad media del anillo de STV: <b>{disp_media:.2f}%</b> "
-        f"sobre <b>{len(stv_ids)}</b> vehículos y <b>{n_fallos:,}</b> fallos. "
-        + (f"El STV más crítico es <b>{peor}</b> (<b>{peor_valor:.2f}%</b>). " if peor else "")
+        f"Disponibilidad media del anillo de STV: <b>{fmt_es(disp_media, 2)}%</b> "
+        f"sobre <b>{len(stv_ids)}</b> vehículos y <b>{fmt_es(n_fallos, 0)}</b> fallos. "
+        + (f"El STV más crítico es <b>{peor}</b> (<b>{fmt_es(peor_valor, 2)}%</b>). " if peor else "")
         + juicio
     )
 
