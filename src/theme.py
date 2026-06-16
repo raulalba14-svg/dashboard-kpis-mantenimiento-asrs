@@ -15,13 +15,16 @@ import plotly.io as pio
 # Paleta corporativa (clara)
 # ---------------------------------------------------------------------------
 
-PRIMARIO        = "#1F4E79"   # azul principal
-PRIMARIO_CLARO  = "#2E86AB"   # teal acento
-EXITO           = "#2E7D32"   # verde — buen estado
-ADVERTENCIA     = "#F18F01"   # ámbar — atención
-CRITICO         = "#C73E1D"   # rojo — fuera de umbral
+FONDO_OSCURO    = "#0E1A2B"   # azul medianoche — fondo hero / superficies oscuras
+PRIMARIO        = "#1E4D72"   # azul instrumento — marca, serie 1, widgets
+PRIMARIO_CLARO  = "#2E86AB"   # azul medio — series secundarias
+ACENTO          = "#18B6C9"   # cian técnico — focal: rellenos, bordes, sobre-oscuro
+ACENTO_TEXTO    = "#0E7C8B"   # cian profundo — cian legible como texto sobre claro
+EXITO           = "#1F9D55"   # verde — buen estado
+ADVERTENCIA     = "#F5A623"   # ámbar — atención
+CRITICO         = "#E5484D"   # rojo — fuera de umbral
 
-GRIS_900 = "#101828"   # texto principal
+GRIS_900 = "#0F1722"   # texto principal
 GRIS_700 = "#344054"   # texto secundario
 GRIS_500 = "#667085"   # caption
 GRIS_300 = "#D0D5DD"   # bordes
@@ -30,8 +33,8 @@ GRIS_50  = "#F9FAFB"   # fondo tarjeta
 
 # Secuencia para series categóricas (varios elementos con la misma escala)
 SECUENCIA = [
-    PRIMARIO, PRIMARIO_CLARO, ADVERTENCIA, EXITO, CRITICO,
-    "#7E57C2", "#26A69A", "#EC407A", "#5C6BC0", "#8D6E63",
+    PRIMARIO, ACENTO, PRIMARIO_CLARO, ADVERTENCIA, EXITO, CRITICO,
+    "#6B8AA6", "#4F9D8E", "#9B7BB8", "#8C99A8",
 ]
 
 # Paletas semánticas por dominio
@@ -45,7 +48,7 @@ COLOR_CATEGORIA = {
 COLOR_SEVERIDAD = {
     "baja":     EXITO,
     "media":    ADVERTENCIA,
-    "alta":     "#E67E22",
+    "alta":     "#D9822B",
     "critica":  CRITICO,
 }
 
@@ -63,7 +66,7 @@ def _construir_template() -> go.layout.Template:
     template = go.layout.Template()
     template.layout = go.Layout(
         font=dict(
-            family="Inter, -apple-system, 'Segoe UI', system-ui, sans-serif",
+            family="'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif",
             size=13,
             color=GRIS_900,
         ),
@@ -114,12 +117,12 @@ def _construir_template() -> go.layout.Template:
         hoverlabel=dict(
             bgcolor="white",
             bordercolor=GRIS_300,
-            font=dict(color=GRIS_900, family="Inter, sans-serif"),
+            font=dict(color=GRIS_900, family="'IBM Plex Sans', sans-serif"),
         ),
         colorscale=dict(
             sequential=[
-                [0.0, "#EAF2F9"], [0.25, "#9DBFD9"],
-                [0.5, "#5E92BC"], [0.75, "#2F669E"],
+                [0.0, "#E6F4F6"], [0.25, "#A7E0E7"],
+                [0.5, ACENTO], [0.75, PRIMARIO_CLARO],
                 [1.0, PRIMARIO],
             ],
             diverging=[

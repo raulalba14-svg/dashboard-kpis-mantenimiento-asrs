@@ -14,8 +14,9 @@ from src.charts import (
     kpi_card_html, evolucion_multilinea_con_media, heatmap_alzado_pasillo,
     gauge_disponibilidad,
 )
-from src.theme import aplicar_tema, PRIMARIO, GRIS_700
+from src.theme import aplicar_tema, PRIMARIO, GRIS_700, EXITO, ADVERTENCIA, CRITICO, ACENTO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
+from src.icons import chip
 from src.config import (
     UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario,
     RANGO_ANUAL,
@@ -135,15 +136,18 @@ with c_gauge:
                     config={"displayModeBar": False})
 with c1:
     st.markdown(kpi_card_html(f"MTTR medio ({unidad_label})",
-                              fmt_es(mttr_medio, 1), icono="🛠️"),
+                              fmt_es(mttr_medio, 1), icono=chip("wrench", PRIMARIO),
+                              acento=PRIMARIO),
                 unsafe_allow_html=True)
 with c2:
     st.markdown(kpi_card_html("Ciclos totales",
-                              fmt_es(ciclos_total, 0), icono="🔄"),
+                              fmt_es(ciclos_total, 0), icono=chip("rotate", ACENTO),
+                              acento=ACENTO),
                 unsafe_allow_html=True)
 with c3:
     st.markdown(kpi_card_html("Fallos en el periodo",
-                              fmt_es(n_fallos_total, 0), icono="⚠️"),
+                              fmt_es(n_fallos_total, 0), icono=chip("alert-triangle", CRITICO),
+                              acento=CRITICO),
                 unsafe_allow_html=True)
 
 st.caption(
@@ -152,7 +156,9 @@ st.caption(
     "está en la tabla comparativa inferior."
 )
 
-lectura_ejecutiva(rendimiento_srm(eventos, misiones, equipos, rango_tuple))
+_estado = "ok" if disp_media >= 95 else ("vigilar" if disp_media >= 90 else "critico")
+lectura_ejecutiva(rendimiento_srm(eventos, misiones, equipos, rango_tuple),
+                  estado=_estado)
 
 st.divider()
 
@@ -276,7 +282,7 @@ st.caption(
     "**frecuencia** (cuántas veces ocurre cada avería) y la derecha por **tiempo "
     "de parada acumulado** (su impacto en horas). El selector superior controla "
     "las dos a la vez (un transelevador o toda la flota). El color marca la "
-    "gravedad — 🟢 normal · 🟠 elevado · 🔴 foco crítico — con umbrales que se "
+    "gravedad — normal · elevado · foco crítico — con umbrales que se "
     "ajustan al periodo y al nº de equipos mostrados."
 )
 
@@ -427,7 +433,7 @@ st.divider()
 # Fila 6 — Detalle individual
 # ---------------------------------------------------------------------------
 
-with st.expander("🔍 Detalle individual de un SRM", expanded=False):
+with st.expander("Detalle individual de un SRM", expanded=False):
     srm_ids = sorted(tabla["id_equipo"].tolist())
     srm_det = st.selectbox("Selecciona un SRM", options=srm_ids, key="m2_srm_sel")
 
@@ -436,22 +442,27 @@ with st.expander("🔍 Detalle individual de un SRM", expanded=False):
 
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     with cc1:
-        st.markdown(kpi_card_html("Disponibilidad", f"{fmt_es(row['disponibilidad'], 2)} %"),
+        st.markdown(kpi_card_html("Disponibilidad", f"{fmt_es(row['disponibilidad'], 2)} %",
+                                  icono=chip("check-circle", EXITO), acento=EXITO),
                     unsafe_allow_html=True)
     with cc2:
         mttr_str = fmt_es(row['mttr'], 1) if pd.notna(row['mttr']) else "—"
-        st.markdown(kpi_card_html(f"MTTR ({unidad_label})", mttr_str),
+        st.markdown(kpi_card_html(f"MTTR ({unidad_label})", mttr_str,
+                                  icono=chip("wrench", PRIMARIO), acento=PRIMARIO),
                     unsafe_allow_html=True)
     with cc3:
         mtbf_str = fmt_es(row['mtbf'], 0) if pd.notna(row['mtbf']) else "—"
-        st.markdown(kpi_card_html(f"MTBF ({unidad_label})", mtbf_str),
+        st.markdown(kpi_card_html(f"MTBF ({unidad_label})", mtbf_str,
+                                  icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA),
                     unsafe_allow_html=True)
     with cc4:
         st.markdown(kpi_card_html("Ciclos",
-                                  fmt_es(int(row['ciclos']) if pd.notna(row['ciclos']) else 0, 0)),
+                                  fmt_es(int(row['ciclos']) if pd.notna(row['ciclos']) else 0, 0),
+                                  icono=chip("rotate", ACENTO), acento=ACENTO),
                     unsafe_allow_html=True)
     with cc5:
-        st.markdown(kpi_card_html("Fallos", fmt_es(int(row['n_fallos']), 0)),
+        st.markdown(kpi_card_html("Fallos", fmt_es(int(row['n_fallos']), 0),
+                                  icono=chip("alert-triangle", CRITICO), acento=CRITICO),
                     unsafe_allow_html=True)
 
     st.markdown("")

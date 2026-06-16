@@ -54,7 +54,7 @@ def panel_exportacion(datasets: Mapping[str, pd.DataFrame], prefijo: str) -> Non
         return
 
     st.markdown(
-        "### ⬇ Descargar datos del módulo"
+        "### Descargar datos del módulo"
     )
     st.caption(
         "Descarga los datasets de esta página con los filtros actuales "
@@ -73,6 +73,6 @@ def panel_exportacion(datasets: Mapping[str, pd.DataFrame], prefijo: str) -> Non
             boton_descarga(
                 df,
                 nombre_fichero=f"{prefijo}_{slug}.csv",
-                etiqueta=f"⬇ {etiqueta}",
+                etiqueta=etiqueta,
                 key=f"dl_{prefijo}_{slug}",
             )

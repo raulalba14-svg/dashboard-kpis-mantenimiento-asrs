@@ -9,6 +9,7 @@ __pycache__/
 
 # Tooling de skills de IA — no forma parte de la demo pública
 .agents/
+.claude/skills/
 skills-lock.json
 
 # Artefacto de trabajo del rediseño — no forma parte del producto

@@ -14,10 +14,21 @@ import pandas as pd
 
 from src.theme import (
     COLOR_CATEGORIA, COLOR_SEVERIDAD,
-    PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO,
+    PRIMARIO, PRIMARIO_CLARO, ACENTO, EXITO, ADVERTENCIA, CRITICO,
     GRIS_100, GRIS_300, GRIS_500, GRIS_700, GRIS_900,
 )
 from src.format import fmt_es
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    """Convierte '#RRGGBB' en 'rgba(r,g,b,alpha)' para rellenos translúcidos.
+
+    Cosmético: permite que el relleno de un área herede el color real de su
+    línea (cian, verde, ámbar…) en vez de un azul fijo.
+    """
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +388,7 @@ def sparkline(serie: pd.Series, color: str | None = None,
         mode="lines",
         line=dict(color=color, width=2.4),
         fill="tozeroy",
-        fillcolor=f"rgba(31, 78, 121, 0.10)",
+        fillcolor=_rgba(color, 0.12),
         hovertemplate="%{y:.1f}<extra></extra>",
     ))
     fig.update_layout(
@@ -426,7 +437,7 @@ def serie_anual_area(serie: pd.Series, titulo: str, label_y: str = "",
         line=dict(color=color, width=3),
         marker=dict(size=8, color=color, line=dict(color="white", width=1.5)),
         fill="tozeroy" if rango_y is None else "tonexty",
-        fillcolor=f"rgba(31, 78, 121, 0.08)",
+        fillcolor=_rgba(color, 0.14),
         name=label_y,
         hovertemplate="<b>%{x}</b><br>%{y:.2f}<extra></extra>",
     ))
@@ -442,7 +453,7 @@ def serie_anual_area(serie: pd.Series, titulo: str, label_y: str = "",
                 x=r["mes_label"], y=r["valor"],
                 text=f"{etiqueta}: {r['valor']:.1f}",
                 showarrow=True, arrowhead=2, arrowcolor=col, arrowsize=1,
-                font=dict(color=col, size=11, family="Inter, sans-serif"),
+                font=dict(color=col, size=11, family="'IBM Plex Sans', sans-serif"),
                 bgcolor="white", bordercolor=col, borderwidth=1, borderpad=3,
                 ax=0, ay=-30 if etiqueta == "máx" else 30,
             )
@@ -998,7 +1009,7 @@ def evolucion_multilinea_con_media(
     series: dict[str, pd.Series],
     titulo: str = "",
     label_y: str = "",
-    color_media: str = PRIMARIO,
+    color_media: str = ACENTO,
     destacar: str | None = None,
     color_destacado: str = CRITICO,
 ) -> go.Figure:
@@ -1071,10 +1082,14 @@ def evolucion_multilinea_con_media(
 
 def kpi_card_html(label: str, valor: str, delta: str | None = None,
                   delta_positivo: bool | None = None,
-                  icono: str = "") -> str:
+                  icono: str = "", acento: str | None = None) -> str:
     """
     Devuelve HTML de una tarjeta KPI estilo Linear/Stripe.
     Diseñada para que la página haga st.markdown(html, unsafe_allow_html=True).
+
+    acento: color del KPI (mismo que el del `chip`). Si se pasa, la tarjeta
+            recibe un fondo tintado muy suave y una banda superior de ese color
+            para que cada métrica se distinga de un vistazo.
     """
     if delta is None:
         delta_html = ""
@@ -1086,20 +1101,35 @@ def kpi_card_html(label: str, valor: str, delta: str | None = None,
             f'margin-top:4px;">{flecha} {delta}</div>'
         )
 
-    return f"""
-    <div style="
-        background: #F9FAFB;
-        border: 1px solid #E4E7EC;
-        border-radius: 10px;
-        padding: 16px 18px;
-        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-        height: 100%;
-    ">
-        <div style="color:{GRIS_500};font-size:0.78rem;font-weight:500;
-                    text-transform:uppercase;letter-spacing:0.04em;
-                    margin-bottom:6px;">{icono} {label}</div>
-        <div style="color:{GRIS_900};font-size:1.65rem;font-weight:700;
-                    line-height:1.1;">{valor}</div>
-        {delta_html}
-    </div>
-    """
+    if acento:
+        fondo = _rgba(acento, 0.06)
+        borde = _rgba(acento, 0.22)
+        banda = f"border-top:3px solid {acento};"
+    else:
+        fondo, borde, banda = "#FFFFFF", "#E4E7EC", ""
+
+    # HTML en líneas sin sangría: Streamlit/Markdown trata los bloques con
+    # indentación de 4+ espacios como código y escaparía las etiquetas (se vería
+    # un "</div>" literal). Pegado a la izquierda se renderiza como HTML puro.
+    estilo_card = (
+        f"background:{fondo};border:1px solid {borde};{banda}border-radius:10px;"
+        "padding:16px 18px;box-shadow:0 1px 3px rgba(16,24,40,0.06);"
+        "height:100%;display:flex;align-items:flex-start;"
+    )
+    estilo_label = (
+        f"color:{GRIS_700};font-size:0.78rem;font-weight:600;"
+        "text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;"
+    )
+    estilo_valor = (
+        f"color:{GRIS_900};font-size:1.7rem;font-weight:700;line-height:1.1;"
+        "font-variant-numeric:tabular-nums;"
+        "font-family:'IBM Plex Mono','Consolas',monospace;"
+    )
+    return (
+        f'<div style="{estilo_card}">{icono}'
+        f'<div style="flex:1 1 auto;min-width:0;">'
+        f'<div style="{estilo_label}">{label}</div>'
+        f'<div style="{estilo_valor}">{valor}</div>'
+        f'{delta_html}'
+        f'</div></div>'
+    )

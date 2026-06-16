@@ -12,9 +12,10 @@ from src.charts import (
     evolucion_lineas_categoria, gauge_objetivo,
 )
 from src.theme import (
-    aplicar_tema, PRIMARIO, PRIMARIO_CLARO, ADVERTENCIA, GRIS_700,
+    aplicar_tema, PRIMARIO, PRIMARIO_CLARO, ADVERTENCIA, CRITICO, GRIS_700,
 )
 from src.styles import inyectar_css, hero, lectura_ejecutiva
+from src.icons import chip
 from src.config import init_session_state, rango_valido
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
@@ -104,10 +105,10 @@ with c_gauge:
                     config={"displayModeBar": False})
 with c1:
     st.markdown(kpi_card_html("Misiones totales", fmt_es(n_misiones, 0),
-                              icono="📦"), unsafe_allow_html=True)
+                              icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
 with c2:
     st.markdown(kpi_card_html("Rechazadas", fmt_es(n_rechazos, 0),
-                              icono="🚫"), unsafe_allow_html=True)
+                              icono=chip("x-circle", CRITICO), acento=CRITICO), unsafe_allow_html=True)
 
 st.caption(
     "**Lectura:** tasa de rechazo frente al objetivo del **2%** (línea negra del "
@@ -115,7 +116,10 @@ st.caption(
     "encima."
 )
 
-lectura_ejecutiva(rechazos(misiones, eventos))
+# Estado según la tasa de rechazo frente al objetivo del 2 % (menor = mejor).
+_tasa_pct = tasa_global * 100
+_estado = "ok" if _tasa_pct <= 2 else ("vigilar" if _tasa_pct <= 4 else "critico")
+lectura_ejecutiva(rechazos(misiones, eventos), estado=_estado)
 
 st.divider()
 
