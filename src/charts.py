@@ -1091,34 +1091,41 @@ def kpi_card_html(label: str, valor: str, delta: str | None = None,
             recibe un fondo tintado muy suave y una banda superior de ese color
             para que cada métrica se distinga de un vistazo.
     """
+    # Zona de delta: se reserva SIEMPRE el mismo alto (min-height) tenga o no
+    # delta, para que tarjetas con y sin delta en la misma fila no descuadren.
     if delta is None:
-        delta_html = ""
+        delta_html = '<div style="min-height:1.1rem;margin-top:4px;"></div>'
     else:
         color = EXITO if delta_positivo else (CRITICO if delta_positivo is False else GRIS_500)
         flecha = "▲" if delta_positivo else ("▼" if delta_positivo is False else "—")
         delta_html = (
             f'<div style="color:{color};font-size:0.85rem;font-weight:500;'
-            f'margin-top:4px;">{flecha} {delta}</div>'
+            f'margin-top:4px;min-height:1.1rem;">{flecha} {delta}</div>'
         )
 
+    # Tinte unificado con las tarjetas de navegación (mismo lenguaje visual).
     if acento:
-        fondo = _rgba(acento, 0.06)
-        borde = _rgba(acento, 0.22)
-        banda = f"border-top:3px solid {acento};"
+        fondo = _rgba(acento, 0.10)
+        borde = _rgba(acento, 0.30)
+        banda = f"border-top:4px solid {acento};"
     else:
-        fondo, borde, banda = "#FFFFFF", "#E4E7EC", ""
+        fondo, borde, banda = "#FFFFFF", "#E4E7EC", "border-top:4px solid #E4E7EC;"
 
     # HTML en líneas sin sangría: Streamlit/Markdown trata los bloques con
     # indentación de 4+ espacios como código y escaparía las etiquetas (se vería
     # un "</div>" literal). Pegado a la izquierda se renderiza como HTML puro.
+    # min-height + flex-column reservan un esqueleto idéntico en todas: el chip y
+    # el label arriba, el valor y el delta abajo, alineados fila a fila.
     estilo_card = (
         f"background:{fondo};border:1px solid {borde};{banda}border-radius:10px;"
         "padding:16px 18px;box-shadow:0 1px 3px rgba(16,24,40,0.06);"
-        "height:100%;display:flex;align-items:flex-start;"
+        "height:100%;min-height:118px;box-sizing:border-box;"
+        "display:flex;align-items:flex-start;gap:11px;"
     )
     estilo_label = (
         f"color:{GRIS_700};font-size:0.78rem;font-weight:600;"
-        "text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;"
+        "text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;"
+        "min-height:2.1rem;line-height:1.25;"
     )
     estilo_valor = (
         f"color:{GRIS_900};font-size:1.7rem;font-weight:700;line-height:1.1;"
@@ -1127,7 +1134,7 @@ def kpi_card_html(label: str, valor: str, delta: str | None = None,
     )
     return (
         f'<div style="{estilo_card}">{icono}'
-        f'<div style="flex:1 1 auto;min-width:0;">'
+        f'<div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;height:100%;">'
         f'<div style="{estilo_label}">{label}</div>'
         f'<div style="{estilo_valor}">{valor}</div>'
         f'{delta_html}'

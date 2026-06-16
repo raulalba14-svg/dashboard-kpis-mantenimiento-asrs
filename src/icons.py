@@ -92,8 +92,10 @@ def chip(nombre: str, color: str, size: int = 34) -> str:
         f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.9" '
         f'stroke-linecap="round" stroke-linejoin="round">{cuerpo}</svg>'
     )
+    # El espaciado a la derecha lo controla el contenedor (gap de la tarjeta KPI),
+    # para que el chip quede a la misma distancia del texto en todas las tarjetas.
     return (
         f'<span style="display:inline-flex;align-items:center;justify-content:center;'
         f'width:{size}px;height:{size}px;border-radius:9px;flex:0 0 auto;'
-        f'background:{_hex_a_rgba(color, 0.14)};margin-right:11px;">{svg}</span>'
+        f'background:{_hex_a_rgba(color, 0.16)};">{svg}</span>'
     )

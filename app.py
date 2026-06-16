@@ -6,7 +6,7 @@ import streamlit as st
 
 from src.theme import (
     aplicar_tema, GRIS_500, GRIS_700, GRIS_900,
-    PRIMARIO, PRIMARIO_CLARO, ACENTO, EXITO, ADVERTENCIA, CRITICO,
+    PRIMARIO, ACENTO, EXITO, ADVERTENCIA, CRITICO,
 )
 from src.styles import inyectar_css, hero, badge
 from src.icons import icon
@@ -16,6 +16,11 @@ def _rgba(hex_color: str, alpha: float) -> str:
     h = hex_color.lstrip("#")
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+# Violeta de la SECUENCIA del tema: da a STV un color propio bien diferenciado
+# del cian (Resumen) y del azul (SRM), que de otro modo se confundirían juntos.
+_VIOLETA = "#9B7BB8"
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina, PROYECTO, CLAIM
 
@@ -156,7 +161,7 @@ _CARDS = [
      "pages/2_Rendimiento_SRM.py", PRIMARIO),
     ("nav_3", "truck", "Rendimiento STV",
      "15 vehículos del anillo · MTTR/MTBF/disponibilidad",
-     "pages/3_Rendimiento_STV.py", PRIMARIO_CLARO),
+     "pages/3_Rendimiento_STV.py", _VIOLETA),
     ("nav_4", "x-circle", "Rechazos",
      "Inspección de recepción · tasa de rechazo · motivos",
      "pages/4_Rechazos.py", ADVERTENCIA),
@@ -221,11 +226,12 @@ _card_css = """
 div[data-testid="stButton"] > button {
     border: 1px solid #E4E7EC !important;
     border-radius: 10px !important;
-    padding: 20px 24px 34px 22px !important;
+    padding: 20px 24px 38px 22px !important;
     box-shadow: 0 1px 2px rgba(16,24,40,0.04) !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
-    height: 100% !important;
-    min-height: 132px !important;
+    /* Altura FIJA (no min-height): todas las tarjetas miden igual aunque el texto
+       ocupe 1 o 2 líneas (p. ej. Expedición), y la flecha inferior queda alineada. */
+    height: 150px !important;
     width: 100% !important;
     text-align: left !important;
     white-space: normal !important;
@@ -267,11 +273,11 @@ div[data-testid="stButton"] > button:hover::after {
     color: #344054;
     opacity: 0.9;
 }
-/* Móvil: tarjetas más compactas; el icono de fondo se mantiene discreto */
+/* Móvil: tarjetas apiladas, altura fija algo menor y padding compacto. */
 @media (max-width: 640px) {
     div[data-testid="stButton"] > button {
-        min-height: 92px !important;
-        padding: 16px 18px 28px 16px !important;
+        height: 116px !important;
+        padding: 16px 18px 30px 16px !important;
     }
     div[data-testid="stButton"] > button::before {
         top: 14px !important;
