@@ -3,13 +3,8 @@
 import streamlit as st
 import pandas as pd
 
-from src.config import FECHA_INICIO, FECHA_FIN, TIPOS_EQUIPO, ZONAS, init_session_state
+from src.config import FECHA_INICIO, FECHA_FIN, init_session_state
 from src.theme import PRIMARIO
-
-_ZONAS_LABELS = {
-    "pasillo": "Pasillo (SRM)",
-    "anillo":  "Anillo (STV)",
-}
 
 
 def render_sidebar_filtros() -> None:
@@ -31,19 +26,6 @@ def render_sidebar_filtros() -> None:
             min_value=fecha_ini_def,
             max_value=fecha_fin_def,
             key="rango_fechas",
-        )
-
-        st.multiselect(
-            "Tipo de equipo",
-            options=TIPOS_EQUIPO,
-            key="tipos_equipo",
-        )
-
-        st.multiselect(
-            "Zona",
-            options=ZONAS,
-            format_func=lambda z: _ZONAS_LABELS.get(z, z),
-            key="zonas",
         )
 
         st.divider()
