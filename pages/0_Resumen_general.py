@@ -12,8 +12,9 @@ from src.kpis import (
 from src.charts import (
     serie_anual_area, gauge_disponibilidad, kpi_card_html,
 )
-from src.theme import aplicar_tema
+from src.theme import aplicar_tema, PRIMARIO, ADVERTENCIA, CRITICO, ACENTO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
+from src.icons import chip
 from src.config import (
     UNIDAD_TIEMPO, init_session_state, rango_valido, rango_calendario,
     RANGO_ANUAL,
@@ -98,7 +99,12 @@ delta = delta_vs_periodo_anterior(
     misiones_global=f_global["misiones"],
 )
 
-lectura_ejecutiva(resumen_general(eventos, misiones, equipos, rango_tuple))
+# Estado global de la instalación según la disponibilidad media frente al
+# objetivo del 95 %: tiñe la síntesis como semáforo (verde/ámbar/rojo).
+_disp = kpis["disponibilidad_media"]
+_estado = "ok" if _disp >= 95 else ("vigilar" if _disp >= 90 else "critico")
+lectura_ejecutiva(resumen_general(eventos, misiones, equipos, rango_tuple),
+                  estado=_estado)
 
 # Serie mensual de fallos (se exporta más abajo).
 serie_fallos_mensual = serie_mensual(
@@ -150,26 +156,28 @@ with c_kpis:
     with k1:
         st.markdown(
             kpi_card_html("Fallos en el periodo", fmt_es(kpis['n_fallos'], 0),
-                          icono="⚠️"),
+                          icono=chip("alert-triangle", CRITICO), acento=CRITICO),
             unsafe_allow_html=True,
         )
     with k2:
         st.markdown(
             kpi_card_html(f"MTTR medio ({unidad_label})", fmt_es(kpis['mttr_medio'], 1),
-                          delta_mttr_txt, delta_mttr_pos, icono="🛠️"),
+                          delta_mttr_txt, delta_mttr_pos, icono=chip("wrench", PRIMARIO),
+                          acento=PRIMARIO),
             unsafe_allow_html=True,
         )
     k3, k4 = st.columns(2)
     with k3:
         st.markdown(
             kpi_card_html(f"MTBF medio ({unidad_label})", fmt_es(kpis['mtbf_medio'], 0),
-                          icono="⏱️"),
+                          icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA),
             unsafe_allow_html=True,
         )
     with k4:
         st.markdown(
             kpi_card_html("Ciclos totales", fmt_es(kpis['ciclos_totales'], 0),
-                          delta_ciclos_txt, delta_ciclos_pos, icono="🔄"),
+                          delta_ciclos_txt, delta_ciclos_pos, icono=chip("rotate", ACENTO),
+                          acento=ACENTO),
             unsafe_allow_html=True,
         )
 

@@ -28,8 +28,7 @@ hero(
     kicker="Acerca de",
     titulo="Sobre el proyecto y su autor",
     subtitulo=(
-        "Contexto, motivación y arquitectura de la herramienta — "
-        "una pantalla para entender el qué, el por qué y el cómo."
+        "Contexto, motivación y arquitectura de la herramienta."
     ),
 )
 
@@ -135,7 +134,7 @@ for i, (nombre, descripcion, campos, color) in enumerate(_tablas):
                         padding:14px 18px;margin-bottom:14px;
                         border-left:4px solid {color};
                         box-shadow:0 1px 2px rgba(16,24,40,0.04);">
-                <div style="font-family:'JetBrains Mono', 'Consolas', monospace;
+                <div style="font-family:'IBM Plex Mono', 'Consolas', monospace;
                             font-weight:700;color:{GRIS_900};font-size:0.95rem;">
                     {nombre}
                 </div>
@@ -143,7 +142,7 @@ for i, (nombre, descripcion, campos, color) in enumerate(_tablas):
                     {descripcion}
                 </div>
                 <div style="color:{GRIS_500};font-size:0.78rem;margin-top:8px;
-                            font-family:'JetBrains Mono', 'Consolas', monospace;
+                            font-family:'IBM Plex Mono', 'Consolas', monospace;
                             line-height:1.5;">
                     {campos}
                 </div>
@@ -171,12 +170,12 @@ with col_stack:
         - **Generador de datos sintéticos**: `scripts/generar_datos.py`
           produce ~0,94 M de misiones y ~2.170 eventos con estacionalidad,
           correlación ciclos↔fallos y coherencia temporal verificada.
-        - **Sistema de diseño propio**: paleta corporativa, tipografía Inter,
-          template Plotly compartido y componentes reutilizables
-          (`hero`, `lectura_ejecutiva`, `badge`).
-        - **Insights accionables**: cada módulo incluye una lectura ejecutiva
-          que traduce los KPIs a recomendaciones operativas, recalculada con
-          los filtros activos.
+        - **Sistema de diseño propio**: paleta corporativa, tipografía
+          IBM Plex Sans/Mono, template Plotly compartido y componentes
+          reutilizables (`hero`, `lectura_ejecutiva`, `badge`).
+        - **Síntesis por módulo**: cada módulo incluye una síntesis que
+          traduce los KPIs a conclusiones operativas, recalculada con los
+          filtros activos.
         """
     )
 

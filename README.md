@@ -4,7 +4,7 @@
 > Convierte los registros crudos de un WMS/WCS en MTTR, MTBF, disponibilidad
 > y patrones de fallo accionables a nivel de equipo, zona y celda.
 
-[![🟢 Demo en vivo](https://img.shields.io/badge/demo-en%20vivo-2ea44f?style=for-the-badge)](https://dashboard-kpis-mantenimiento-asrs-ep8nttdf9imwcwvdnhhzpx.streamlit.app)
+[![Demo en vivo](https://img.shields.io/badge/demo-en%20vivo-2ea44f?style=for-the-badge)](https://dashboard-kpis-mantenimiento-asrs-ep8nttdf9imwcwvdnhhzpx.streamlit.app)
 
 ![CI](https://github.com/raulalba14-svg/dashboard-kpis-mantenimiento-asrs/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
@@ -12,7 +12,7 @@
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)
 ![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC.svg)
 
-## ▶ Pruébalo ahora
+## Aplicación en vivo
 
 **[Abrir la demo en vivo →](https://dashboard-kpis-mantenimiento-asrs-ep8nttdf9imwcwvdnhhzpx.streamlit.app)**
 
@@ -31,13 +31,13 @@ o peor que el semestre pasado?
 
 Este dashboard cierra ese hueco. Toma el log crudo y lo convierte en los KPIs que
 un equipo de mantenimiento usa para **priorizar**: MTTR, MTBF, disponibilidad y
-patrones de fallo, desglosados por equipo, por zona y por celda — con una "lectura
-ejecutiva" en cada pantalla que dice, en una frase, qué mirar primero.
+patrones de fallo, desglosados por equipo, por zona y por celda — con una síntesis
+en cada pantalla que indica, en una frase, qué mirar primero.
 
-> Está construido por alguien que ha estado al otro lado: vengo de mantenimiento
-> electromecánico industrial y me he reconvertido a datos y desarrollo. Sé qué KPIs
-> importan de verdad en planta porque he sido quien los necesitaba — no son métricas
-> elegidas desde fuera, son las que de verdad ordenan una ventana de mantenimiento.
+> Diseñado a partir de experiencia previa en mantenimiento electromecánico
+> industrial: los KPIs seleccionados (MTTR, MTBF, disponibilidad y patrones de
+> fallo) son los que se utilizan en planta para priorizar ventanas de
+> mantenimiento, no métricas elegidas desde fuera.
 
 ---
 

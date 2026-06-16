@@ -7,9 +7,10 @@ from src.data_loader import aplicar_filtros_globales
 from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import tiempo_ciclo
 from src.charts import histograma_distribucion, kpi_card_html, gauge_objetivo
-from src.theme import aplicar_tema, EXITO, ADVERTENCIA, CRITICO
+from src.theme import aplicar_tema, PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO, ACENTO
 from src.format import fmt_es
 from src.styles import inyectar_css, hero, lectura_ejecutiva
+from src.icons import chip
 from src.config import init_session_state, rango_valido
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
@@ -215,48 +216,48 @@ if tiene_pedidos:
         with k1:
             st.markdown(kpi_card_html("Pedidos (trailers)",
                                       fmt_es(len(pedidos), 0),
-                                      icono="🚚"), unsafe_allow_html=True)
+                                      icono=chip("truck", PRIMARIO), acento=PRIMARIO), unsafe_allow_html=True)
         with k2:
             st.markdown(kpi_card_html("Completado P95 (min)",
                                       fmt_es(pedidos['t_min'].quantile(0.95), 0),
-                                      icono="📊"), unsafe_allow_html=True)
+                                      icono=chip("bar-chart", ADVERTENCIA), acento=ADVERTENCIA), unsafe_allow_html=True)
         k3, k4 = st.columns(2)
         with k3:
             st.markdown(kpi_card_html("Pallets expedidos",
                                       fmt_es(pallets_totales, 0),
-                                      icono="📦"), unsafe_allow_html=True)
+                                      icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
         with k4:
             st.markdown(kpi_card_html("Throughput (pallets/h)",
                                       fmt_es(throughput_global, 1),
-                                      icono="🚀"), unsafe_allow_html=True)
+                                      icono=chip("gauge", ACENTO), acento=ACENTO), unsafe_allow_html=True)
 
     st.caption(
         "**Lectura:** tiempo medio de completado de un pedido (trailer de 28 "
         "pallets) frente al objetivo de **210 min** (línea negra del medidor). "
-        "🟢 por debajo del objetivo · 🟠 hasta 300 min · 🔴 por encima."
+        "por debajo del objetivo · hasta 300 min · por encima."
     )
 else:
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         st.markdown(kpi_card_html("Misiones completadas",
                                   fmt_es(n_misiones_comp, 0),
-                                  icono="✅"), unsafe_allow_html=True)
+                                  icono=chip("check-circle", EXITO), acento=EXITO), unsafe_allow_html=True)
     with c2:
         st.markdown(kpi_card_html("Pallets expedidos",
                                   fmt_es(pallets_totales, 0),
-                                  icono="📦"), unsafe_allow_html=True)
+                                  icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
     with c3:
         st.markdown(kpi_card_html("Throughput (pallets/h)",
                                   fmt_es(throughput_global, 1),
-                                  icono="🚀"), unsafe_allow_html=True)
+                                  icono=chip("gauge", ACENTO), acento=ACENTO), unsafe_allow_html=True)
     with c4:
         st.markdown(kpi_card_html("TC medio (s)",
                                   fmt_es(tc_s.mean(), 1),
-                                  icono="⏱️"), unsafe_allow_html=True)
+                                  icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA), unsafe_allow_html=True)
     with c5:
         st.markdown(kpi_card_html("TC mediana (s)",
                                   fmt_es(tc_s.median(), 1),
-                                  icono="📊"), unsafe_allow_html=True)
+                                  icono=chip("bar-chart", PRIMARIO), acento=PRIMARIO), unsafe_allow_html=True)
     st.info(
         "El dataset no incluye pedidos de expedición (columna `id_pedido`) — "
         "regenera los datos con scripts/generar_datos.py para ver el análisis "
@@ -323,7 +324,7 @@ if tiene_pedidos and tiene_muelle:
         f"**Lectura:** cada celda es el tiempo medio de carga (min) de los pedidos "
         f"de ese muelle en esa franja horaria. Cada pedido es un trailer completo "
         f"de 28 pallets. El color compara con la media global ({fmt_es(media_global, 1)} "
-        f"min): 🟢 más rápido · 🟠 en la media · 🔴 más lento. La fila/columna "
+        f"min): más rápido · en la media · más lento. La fila/columna "
         f"**Todas/Todos** son los promedios marginales."
     )
 
@@ -376,11 +377,11 @@ if tiene_pedidos and tiene_muelle:
         ctx = (" en " + " · ".join(donde)) if donde else " (toda la expedición)"
 
         if retr_medio < 0.5:
-            veredicto = "🟢 **Sin retrasos relevantes**"
+            veredicto = "**Sin retrasos relevantes**"
         elif retr_medio < 5:
-            veredicto = "🟠 **Retraso moderado**"
+            veredicto = "**Retraso moderado**"
         else:
-            veredicto = "🔴 **Retraso significativo**"
+            veredicto = "**Retraso significativo**"
 
         st.markdown(
             f"{veredicto}{ctx}: **{fmt_es(n_ped, 0)}** pedidos, tiempo medio de carga "

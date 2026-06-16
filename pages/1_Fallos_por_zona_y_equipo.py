@@ -14,6 +14,7 @@ from src.theme import (
     GRIS_500, GRIS_700,
 )
 from src.styles import inyectar_css, hero, lectura_ejecutiva
+from src.icons import chip
 from src.config import init_session_state, rango_valido
 from src.sidebar import render_sidebar_filtros
 from src.branding import FAVICON, pie_pagina
@@ -93,16 +94,16 @@ top_equipo_n = ev_enriq["id_equipo"].value_counts().iloc[0]
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(kpi_card_html("Total fallos", fmt_es(n_fallos_total, 0),
-                              icono="⚠️"), unsafe_allow_html=True)
+                              icono=chip("alert-triangle", CRITICO), acento=CRITICO), unsafe_allow_html=True)
 with c2:
     st.markdown(kpi_card_html("Equipos afectados", fmt_es(n_equipos_afectados, 0),
-                              icono="🤖"), unsafe_allow_html=True)
+                              icono=chip("cpu", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
 with c3:
     st.markdown(kpi_card_html("Equipo con más fallos", top_equipo,
-                              icono="🔴"), unsafe_allow_html=True)
+                              icono=chip("alert-circle", ADVERTENCIA), acento=ADVERTENCIA), unsafe_allow_html=True)
 with c4:
     st.markdown(kpi_card_html("Fallos del top", fmt_es(top_equipo_n, 0),
-                              icono="📊"), unsafe_allow_html=True)
+                              icono=chip("bar-chart", PRIMARIO), acento=PRIMARIO), unsafe_allow_html=True)
 
 lectura_ejecutiva(fallos_por_zona(eventos, equipos))
 
