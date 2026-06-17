@@ -1160,8 +1160,10 @@ def kpi_grid(tarjetas: list[str], columnas: int = 2, gap: str = "12px",
     """
     n = len(tarjetas)
     filas = (n + columnas - 1) // columnas
+    # minmax(0,1fr): permite que las columnas encojan por debajo de su contenido,
+    # así 2 columnas caben siempre (también en móviles estrechos) sin apilarse.
     grid = (
-        f"display:grid;grid-template-columns:repeat({columnas},1fr);"
+        f"display:grid;grid-template-columns:repeat({columnas},minmax(0,1fr));"
         f"grid-template-rows:repeat({filas},1fr);gap:{gap};"
         f"height:{altura}px;align-items:stretch;"
     )

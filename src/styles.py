@@ -215,20 +215,27 @@ details summary {
         font-size: 1.9rem !important;
     }
     /* En móvil: mantener SIEMPRE la cuadrícula 2×2 (no apilar en 1 columna).
-       Altura automática (no hay gauge al lado que igualar) y hueco ceñido. */
+       minmax(0,1fr) deja que las columnas encojan para que 2 quepan en pantallas
+       estrechas. Altura automática (no hay gauge al lado que igualar). */
     .asrs-kpi-grid {
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
         grid-template-rows: none !important;
         height: auto !important;
         gap: 8px !important;
     }
-    /* Tarjetas con alto mínimo para que queden cuadraditas, no rectángulos finos */
+    /* Tarjetas: que puedan encoger (min-width:0) y queden cuadraditas, no finas;
+       layout vertical (chip arriba, número debajo) para caber en celda estrecha. */
     .asrs-kpi-grid .asrs-kpi {
+        min-width: 0 !important;
         min-height: 96px !important;
         flex-direction: column !important;
         align-items: flex-start !important;
         justify-content: center !important;
         gap: 6px !important;
+    }
+    /* Número un punto menor en móvil para que no desborde la celda estrecha */
+    .asrs-kpi-grid .asrs-kpi__valor {
+        font-size: 1.55rem !important;
     }
 
     /* La barra de herramientas de Plotly estorba en táctil; ya la ocultamos
