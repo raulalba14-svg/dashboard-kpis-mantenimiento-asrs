@@ -223,7 +223,7 @@ fig_evol = serie_anual_area(
     titulo="",
     label_y="Tasa de rechazo (%)",
     referencia=float(tasa_rechazo(misiones_anual) * 100),
-    color=ADVERTENCIA,
+    color=PRIMARIO,   # serie temporal neutra en azul de marca (el semáforo se reserva para gauges/plano)
     rango_y=(1.8, 2.2),
 )
 st.plotly_chart(fig_evol, use_container_width=True,

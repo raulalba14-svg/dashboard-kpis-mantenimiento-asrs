@@ -20,6 +20,11 @@ from src.theme import (
 from src.format import fmt_es
 
 
+# Altura común del gauge y de la rejilla de KPIs contigua, para que ambos
+# bloques midan EXACTAMENTE lo mismo y encajen en alto (sin espacio libre).
+GAUGE_ALTURA = 260
+
+
 def _rgba(hex_color: str, alpha: float) -> str:
     """Convierte '#RRGGBB' en 'rgba(r,g,b,alpha)' para rellenos translúcidos.
 
@@ -289,7 +294,7 @@ def gauge_disponibilidad(valor: float, referencia: float = 95.0,
         text=f"{fmt_es(valor, 2)} %",
         showarrow=False, font=dict(size=42, color=GRIS_900),
     )
-    fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=260)
+    fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=GAUGE_ALTURA)
     return fig
 
 
@@ -1112,31 +1117,53 @@ def kpi_card_html(label: str, valor: str, delta: str | None = None,
         fondo, borde, banda = "#FFFFFF", "#E4E7EC", "border-top:4px solid #E4E7EC;"
 
     # HTML en líneas sin sangría: Streamlit/Markdown trata los bloques con
-    # indentación de 4+ espacios como código y escaparía las etiquetas (se vería
-    # un "</div>" literal). Pegado a la izquierda se renderiza como HTML puro.
-    # min-height + flex-column reservan un esqueleto idéntico en todas: el chip y
-    # el label arriba, el valor y el delta abajo, alineados fila a fila.
+    # indentación de 4+ espacios como código y escaparía las etiquetas. Pegado a
+    # la izquierda se renderiza como HTML puro.
+    # Layout HORIZONTAL compacto: chip a la izquierda, etiqueta + número al lado.
+    # Tarjeta pequeña y discreta (no debe robar protagonismo al gauge contiguo).
     estilo_card = (
         f"background:{fondo};border:1px solid {borde};{banda}border-radius:10px;"
-        "padding:16px 18px;box-shadow:0 1px 3px rgba(16,24,40,0.06);"
-        "height:100%;min-height:118px;box-sizing:border-box;"
-        "display:flex;align-items:flex-start;gap:11px;"
+        "padding:11px 14px;box-shadow:0 1px 3px rgba(16,24,40,0.06);"
+        "box-sizing:border-box;height:100%;"
+        "display:flex;align-items:center;gap:10px;"
     )
     estilo_label = (
-        f"color:{GRIS_700};font-size:0.78rem;font-weight:600;"
-        "text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;"
-        "min-height:2.1rem;line-height:1.25;"
+        f"color:{GRIS_500};font-size:0.72rem;font-weight:600;"
+        "text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;"
+        "min-height:1.45rem;line-height:1.15;"
     )
     estilo_valor = (
-        f"color:{GRIS_900};font-size:1.7rem;font-weight:700;line-height:1.1;"
-        "font-variant-numeric:tabular-nums;"
+        f"color:{GRIS_900};font-size:2.3rem;font-weight:700;line-height:1.0;"
+        "letter-spacing:-0.02em;font-variant-numeric:tabular-nums;"
         "font-family:'IBM Plex Mono','Consolas',monospace;"
     )
     return (
-        f'<div style="{estilo_card}">{icono}'
-        f'<div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;height:100%;">'
+        f'<div class="asrs-kpi" style="{estilo_card}">{icono}'
+        f'<div style="flex:1 1 auto;min-width:0;">'
         f'<div style="{estilo_label}">{label}</div>'
-        f'<div style="{estilo_valor}">{valor}</div>'
+        f'<div class="asrs-kpi__valor" style="{estilo_valor}">{valor}</div>'
         f'{delta_html}'
         f'</div></div>'
     )
+
+
+def kpi_grid(tarjetas: list[str], columnas: int = 2, gap: str = "12px",
+             altura: int = GAUGE_ALTURA) -> str:
+    """
+    Envuelve varias tarjetas (HTML de `kpi_card_html`) en una rejilla CSS con el
+    MISMO hueco en vertical y horizontal, y ALTURA FIJA igual a la del gauge
+    contiguo (`GAUGE_ALTURA`), repartida entre sus filas. Así el bloque de KPIs
+    encaja con el indicador de la izquierda en alto y ancho, sin espacio libre:
+    cada tarjeta llena su celda y, como centra su contenido, no deja huecos.
+
+    Renderizar con: st.markdown(kpi_grid([...]), unsafe_allow_html=True)
+    """
+    n = len(tarjetas)
+    filas = (n + columnas - 1) // columnas
+    grid = (
+        f"display:grid;grid-template-columns:repeat({columnas},1fr);"
+        f"grid-template-rows:repeat({filas},1fr);gap:{gap};"
+        f"height:{altura}px;align-items:stretch;"
+    )
+    cuerpo = "".join(tarjetas)
+    return f'<div class="asrs-kpi-grid" style="{grid}">{cuerpo}</div>'

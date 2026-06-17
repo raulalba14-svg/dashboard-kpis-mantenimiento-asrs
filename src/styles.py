@@ -207,6 +207,21 @@ details summary {
     h1 { font-size: 1.6rem !important; }
     h2 { font-size: 1.3rem !important; }
 
+    /* Tarjetas KPI: más compactas en móvil (padding ajustado, número un punto menor) */
+    .asrs-kpi {
+        padding: 11px 14px !important;
+    }
+    .asrs-kpi__valor {
+        font-size: 1.9rem !important;
+    }
+    /* En móvil no hay gauge al lado que igualar: la rejilla toma altura natural
+       (las tarjetas a su alto de contenido) y el hueco se ciñe. */
+    .asrs-kpi-grid {
+        height: auto !important;
+        grid-template-rows: none !important;
+        gap: 8px !important;
+    }
+
     /* La barra de herramientas de Plotly estorba en táctil; ya la ocultamos
        por configuración, pero reforzamos por si alguna queda visible. */
     .stPlotlyChart .modebar {

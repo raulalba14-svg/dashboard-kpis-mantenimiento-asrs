@@ -6,7 +6,7 @@ import pandas as pd
 from src.data_loader import aplicar_filtros_globales
 from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import tiempo_ciclo
-from src.charts import histograma_distribucion, kpi_card_html, gauge_objetivo
+from src.charts import histograma_distribucion, kpi_card_html, kpi_grid, gauge_objetivo
 from src.theme import aplicar_tema, PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO, ACENTO
 from src.format import fmt_es
 from src.styles import inyectar_css, hero, lectura_ejecutiva
@@ -212,24 +212,16 @@ if tiene_pedidos:
         st.plotly_chart(fig_gauge, use_container_width=True,
                         config={"displayModeBar": False})
     with c_kpis:
-        k1, k2 = st.columns(2)
-        with k1:
-            st.markdown(kpi_card_html("Pedidos (trailers)",
-                                      fmt_es(len(pedidos), 0),
-                                      icono=chip("truck", PRIMARIO), acento=PRIMARIO), unsafe_allow_html=True)
-        with k2:
-            st.markdown(kpi_card_html("Completado P95 (min)",
-                                      fmt_es(pedidos['t_min'].quantile(0.95), 0),
-                                      icono=chip("bar-chart", ADVERTENCIA), acento=ADVERTENCIA), unsafe_allow_html=True)
-        k3, k4 = st.columns(2)
-        with k3:
-            st.markdown(kpi_card_html("Pallets expedidos",
-                                      fmt_es(pallets_totales, 0),
-                                      icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
-        with k4:
-            st.markdown(kpi_card_html("Throughput (pallets/h)",
-                                      fmt_es(throughput_global, 1),
-                                      icono=chip("gauge", ACENTO), acento=ACENTO), unsafe_allow_html=True)
+        st.markdown(kpi_grid([
+            kpi_card_html("Pedidos (trailers)", fmt_es(len(pedidos), 0),
+                          icono=chip("truck", PRIMARIO), acento=PRIMARIO),
+            kpi_card_html("Completado P95 (min)", fmt_es(pedidos['t_min'].quantile(0.95), 0),
+                          icono=chip("bar-chart", ADVERTENCIA), acento=ADVERTENCIA),
+            kpi_card_html("Pallets expedidos", fmt_es(pallets_totales, 0),
+                          icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO),
+            kpi_card_html("Throughput (pallets/h)", fmt_es(throughput_global, 1),
+                          icono=chip("gauge", ACENTO), acento=ACENTO),
+        ]), unsafe_allow_html=True)
 
     st.caption(
         "**Lectura:** tiempo medio de completado de un pedido (trailer de 28 "

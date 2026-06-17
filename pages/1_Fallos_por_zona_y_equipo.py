@@ -235,7 +235,7 @@ fig_evol = serie_anual_area(
     titulo="",
     label_y="Nº fallos",
     referencia=float(serie_fallos_mes.mean()),
-    color=CRITICO,
+    color=PRIMARIO,   # serie temporal neutra: azul de marca, no rojo (el rojo se reserva para estado "crítico")
 )
 st.plotly_chart(fig_evol, use_container_width=True,
                 config={"displayModeBar": False})

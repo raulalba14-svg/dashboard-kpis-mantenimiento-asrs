@@ -20,9 +20,9 @@ PRIMARIO        = "#1E4D72"   # azul instrumento — marca, serie 1, widgets
 PRIMARIO_CLARO  = "#2E86AB"   # azul medio — series secundarias
 ACENTO          = "#18B6C9"   # cian técnico — focal: rellenos, bordes, sobre-oscuro
 ACENTO_TEXTO    = "#0E7C8B"   # cian profundo — cian legible como texto sobre claro
-EXITO           = "#1F9D55"   # verde — buen estado
-ADVERTENCIA     = "#F5A623"   # ámbar — atención
-CRITICO         = "#E5484D"   # rojo — fuera de umbral
+EXITO           = "#2E8B6F"   # verde azulado (teal) — buen estado, armoniza con el cian
+ADVERTENCIA     = "#E0A33C"   # ámbar dorado — atención
+CRITICO         = "#D85C5C"   # rojo coral — fuera de umbral
 
 GRIS_900 = "#0F1722"   # texto principal
 GRIS_700 = "#344054"   # texto secundario

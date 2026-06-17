@@ -10,7 +10,7 @@ from src.kpis import (
     delta_vs_periodo_anterior, serie_mensual,
 )
 from src.charts import (
-    serie_anual_area, gauge_disponibilidad, kpi_card_html,
+    serie_anual_area, gauge_disponibilidad, kpi_card_html, kpi_grid,
 )
 from src.theme import aplicar_tema, PRIMARIO, ADVERTENCIA, CRITICO, ACENTO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
@@ -152,34 +152,21 @@ with c_gauge:
                     config={"displayModeBar": False})
 
 with c_kpis:
-    k1, k2 = st.columns(2)
-    with k1:
-        st.markdown(
+    st.markdown(
+        kpi_grid([
             kpi_card_html("Fallos en el periodo", fmt_es(kpis['n_fallos'], 0),
                           icono=chip("alert-triangle", CRITICO), acento=CRITICO),
-            unsafe_allow_html=True,
-        )
-    with k2:
-        st.markdown(
             kpi_card_html(f"MTTR medio ({unidad_label})", fmt_es(kpis['mttr_medio'], 1),
                           delta_mttr_txt, delta_mttr_pos, icono=chip("wrench", PRIMARIO),
                           acento=PRIMARIO),
-            unsafe_allow_html=True,
-        )
-    k3, k4 = st.columns(2)
-    with k3:
-        st.markdown(
             kpi_card_html(f"MTBF medio ({unidad_label})", fmt_es(kpis['mtbf_medio'], 0),
                           icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA),
-            unsafe_allow_html=True,
-        )
-    with k4:
-        st.markdown(
             kpi_card_html("Ciclos totales", fmt_es(kpis['ciclos_totales'], 0),
                           delta_ciclos_txt, delta_ciclos_pos, icono=chip("rotate", ACENTO),
                           acento=ACENTO),
-            unsafe_allow_html=True,
-        )
+        ]),
+        unsafe_allow_html=True,
+    )
 
 st.caption(
     "**Lectura:** disponibilidad media de la instalación frente al objetivo del "
