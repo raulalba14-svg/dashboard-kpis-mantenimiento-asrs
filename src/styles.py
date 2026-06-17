@@ -214,12 +214,21 @@ details summary {
     .asrs-kpi__valor {
         font-size: 1.9rem !important;
     }
-    /* En móvil no hay gauge al lado que igualar: la rejilla toma altura natural
-       (las tarjetas a su alto de contenido) y el hueco se ciñe. */
+    /* En móvil: mantener SIEMPRE la cuadrícula 2×2 (no apilar en 1 columna).
+       Altura automática (no hay gauge al lado que igualar) y hueco ceñido. */
     .asrs-kpi-grid {
-        height: auto !important;
+        grid-template-columns: 1fr 1fr !important;
         grid-template-rows: none !important;
+        height: auto !important;
         gap: 8px !important;
+    }
+    /* Tarjetas con alto mínimo para que queden cuadraditas, no rectángulos finos */
+    .asrs-kpi-grid .asrs-kpi {
+        min-height: 96px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        gap: 6px !important;
     }
 
     /* La barra de herramientas de Plotly estorba en táctil; ya la ocultamos
