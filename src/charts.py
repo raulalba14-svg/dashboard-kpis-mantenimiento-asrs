@@ -1169,3 +1169,5 @@ def kpi_grid(tarjetas: list[str], columnas: int = 2, gap: str = "12px",
     )
     cuerpo = "".join(tarjetas)
     return f'<div class="asrs-kpi-grid" style="{grid}">{cuerpo}</div>'
+
+# kpi_grid y kpi_card_html forman el sistema de tarjetas KPI del dashboard.
