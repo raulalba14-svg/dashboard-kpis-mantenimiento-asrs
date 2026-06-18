@@ -8,7 +8,7 @@ from src.data_loader import aplicar_filtros_globales
 from src.data_ui import cargar_tablas_con_feedback
 from src.kpis import tasa_rechazo
 from src.charts import (
-    serie_anual_area, donut_categoria, kpi_card_html,
+    serie_anual_area, donut_categoria, kpi_card_html, kpi_grid, GAUGE_ALTURA,
     evolucion_lineas_categoria, gauge_objetivo,
 )
 from src.theme import (
@@ -88,7 +88,7 @@ n_misiones  = len(misiones)
 st.subheader("Tasa de rechazo vs. objetivo")
 
 # Gauge a la izquierda (más ancho) y las dos tarjetas KPI a la derecha.
-c_gauge, c1, c2 = st.columns([2, 1, 1])
+c_gauge, c_kpis = st.columns([2, 3])
 
 with c_gauge:
     fig_gauge = gauge_objetivo(
@@ -103,12 +103,13 @@ with c_gauge:
     )
     st.plotly_chart(fig_gauge, use_container_width=True,
                     config={"displayModeBar": False})
-with c1:
-    st.markdown(kpi_card_html("Misiones totales", fmt_es(n_misiones, 0),
-                              icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
-with c2:
-    st.markdown(kpi_card_html("Rechazadas", fmt_es(n_rechazos, 0),
-                              icono=chip("x-circle", CRITICO), acento=CRITICO), unsafe_allow_html=True)
+with c_kpis:
+    st.markdown(kpi_grid([
+        kpi_card_html("Misiones totales", fmt_es(n_misiones, 0),
+                      icono=chip("package", PRIMARIO_CLARO), acento=PRIMARIO_CLARO),
+        kpi_card_html("Rechazadas", fmt_es(n_rechazos, 0),
+                      icono=chip("x-circle", CRITICO), acento=CRITICO),
+    ], columnas=2, altura=GAUGE_ALTURA), unsafe_allow_html=True)
 
 st.caption(
     "**Lectura:** tasa de rechazo frente al objetivo del **2%** (línea negra del "

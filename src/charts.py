@@ -373,7 +373,7 @@ def gauge_objetivo(
         text=f"{fmt_es(valor, decimales)}{sufijo}",
         showarrow=False, font=dict(size=42, color=GRIS_900),
     )
-    fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=260)
+    fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=GAUGE_ALTURA)
     return fig
 
 
@@ -1148,13 +1148,18 @@ def kpi_card_html(label: str, valor: str, delta: str | None = None,
 
 
 def kpi_grid(tarjetas: list[str], columnas: int = 2, gap: str = "12px",
-             altura: int = GAUGE_ALTURA) -> str:
+             altura: int | None = None) -> str:
     """
     Envuelve varias tarjetas (HTML de `kpi_card_html`) en una rejilla CSS con el
-    MISMO hueco en vertical y horizontal, y ALTURA FIJA igual a la del gauge
-    contiguo (`GAUGE_ALTURA`), repartida entre sus filas. Así el bloque de KPIs
-    encaja con el indicador de la izquierda en alto y ancho, sin espacio libre:
-    cada tarjeta llena su celda y, como centra su contenido, no deja huecos.
+    MISMO hueco en vertical y horizontal.
+
+    altura: si se pasa (p. ej. `GAUGE_ALTURA`), la rejilla mide ese alto fijo y
+            reparte sus filas para ENCAJAR con un gauge contiguo sin espacio
+            libre. Si es None (por defecto), la rejilla toma altura natural —
+            para filas de KPIs sin gauge al lado.
+
+    En móvil, la hoja de estilos fuerza 2 columnas y altura automática (la
+    cuadrícula se mantiene en pantallas estrechas, no se apila en 1 columna).
 
     Renderizar con: st.markdown(kpi_grid([...]), unsafe_allow_html=True)
     """
@@ -1162,10 +1167,16 @@ def kpi_grid(tarjetas: list[str], columnas: int = 2, gap: str = "12px",
     filas = (n + columnas - 1) // columnas
     # minmax(0,1fr): permite que las columnas encojan por debajo de su contenido,
     # así 2 columnas caben siempre (también en móviles estrechos) sin apilarse.
+    if altura is not None:
+        dimension = (
+            f"grid-template-rows:repeat({filas},1fr);"
+            f"height:{altura}px;align-items:stretch;"
+        )
+    else:
+        dimension = "align-items:stretch;"
     grid = (
         f"display:grid;grid-template-columns:repeat({columnas},minmax(0,1fr));"
-        f"grid-template-rows:repeat({filas},1fr);gap:{gap};"
-        f"height:{altura}px;align-items:stretch;"
+        f"gap:{gap};{dimension}"
     )
     cuerpo = "".join(tarjetas)
     return f'<div class="asrs-kpi-grid" style="{grid}">{cuerpo}</div>'

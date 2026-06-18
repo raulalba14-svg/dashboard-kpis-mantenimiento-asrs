@@ -7,7 +7,7 @@ from src.data_loader import aplicar_filtros_globales
 from src.data_ui import cargar_tablas_con_feedback
 from src.charts import (
     plano_almacen, barras_ranking_umbrales,
-    serie_anual_area, kpi_card_html,
+    serie_anual_area, kpi_card_html, kpi_grid,
 )
 from src.theme import (
     aplicar_tema, PRIMARIO, PRIMARIO_CLARO, EXITO, ADVERTENCIA, CRITICO,
@@ -91,19 +91,16 @@ n_equipos_afectados = ev_enriq["id_equipo"].nunique()
 top_equipo = ev_enriq["id_equipo"].value_counts().idxmax()
 top_equipo_n = ev_enriq["id_equipo"].value_counts().iloc[0]
 
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.markdown(kpi_card_html("Total fallos", fmt_es(n_fallos_total, 0),
-                              icono=chip("alert-triangle", CRITICO), acento=CRITICO), unsafe_allow_html=True)
-with c2:
-    st.markdown(kpi_card_html("Equipos afectados", fmt_es(n_equipos_afectados, 0),
-                              icono=chip("cpu", PRIMARIO_CLARO), acento=PRIMARIO_CLARO), unsafe_allow_html=True)
-with c3:
-    st.markdown(kpi_card_html("Equipo con más fallos", top_equipo,
-                              icono=chip("alert-circle", ADVERTENCIA), acento=ADVERTENCIA), unsafe_allow_html=True)
-with c4:
-    st.markdown(kpi_card_html("Fallos del top", fmt_es(top_equipo_n, 0),
-                              icono=chip("bar-chart", PRIMARIO), acento=PRIMARIO), unsafe_allow_html=True)
+st.markdown(kpi_grid([
+    kpi_card_html("Total fallos", fmt_es(n_fallos_total, 0),
+                  icono=chip("alert-triangle", CRITICO), acento=CRITICO),
+    kpi_card_html("Equipos afectados", fmt_es(n_equipos_afectados, 0),
+                  icono=chip("cpu", PRIMARIO_CLARO), acento=PRIMARIO_CLARO),
+    kpi_card_html("Equipo con más fallos", top_equipo,
+                  icono=chip("alert-circle", ADVERTENCIA), acento=ADVERTENCIA),
+    kpi_card_html("Fallos del top", fmt_es(top_equipo_n, 0),
+                  icono=chip("bar-chart", PRIMARIO), acento=PRIMARIO),
+], columnas=4), unsafe_allow_html=True)
 
 lectura_ejecutiva(fallos_por_zona(eventos, equipos))
 

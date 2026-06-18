@@ -11,7 +11,8 @@ from src.kpis import (
 )
 from src.charts import (
     barras_horizontales, serie_anual_area,
-    kpi_card_html, evolucion_multilinea_con_media, heatmap_alzado_pasillo,
+    kpi_card_html, kpi_grid, GAUGE_ALTURA,
+    evolucion_multilinea_con_media, heatmap_alzado_pasillo,
     gauge_disponibilidad,
 )
 from src.theme import aplicar_tema, PRIMARIO, GRIS_700, EXITO, ADVERTENCIA, CRITICO, ACENTO
@@ -124,7 +125,7 @@ ciclos_total = int(tabla["ciclos"].sum())
 n_fallos_total = int(tabla["n_fallos"].sum())
 
 # Gauge a la izquierda (más ancho) y las tres tarjetas KPI a la derecha.
-c_gauge, c1, c2, c3 = st.columns([2, 1, 1, 1])
+c_gauge, c_kpis = st.columns([2, 3])
 
 with c_gauge:
     fig_gauge = gauge_disponibilidad(
@@ -134,21 +135,15 @@ with c_gauge:
     )
     st.plotly_chart(fig_gauge, use_container_width=True,
                     config={"displayModeBar": False})
-with c1:
-    st.markdown(kpi_card_html(f"MTTR medio ({unidad_label})",
-                              fmt_es(mttr_medio, 1), icono=chip("wrench", PRIMARIO),
-                              acento=PRIMARIO),
-                unsafe_allow_html=True)
-with c2:
-    st.markdown(kpi_card_html("Ciclos totales",
-                              fmt_es(ciclos_total, 0), icono=chip("rotate", ACENTO),
-                              acento=ACENTO),
-                unsafe_allow_html=True)
-with c3:
-    st.markdown(kpi_card_html("Fallos en el periodo",
-                              fmt_es(n_fallos_total, 0), icono=chip("alert-triangle", CRITICO),
-                              acento=CRITICO),
-                unsafe_allow_html=True)
+with c_kpis:
+    st.markdown(kpi_grid([
+        kpi_card_html(f"MTTR medio ({unidad_label})", fmt_es(mttr_medio, 1),
+                      icono=chip("wrench", PRIMARIO), acento=PRIMARIO),
+        kpi_card_html("Ciclos totales", fmt_es(ciclos_total, 0),
+                      icono=chip("rotate", ACENTO), acento=ACENTO),
+        kpi_card_html("Fallos en el periodo", fmt_es(n_fallos_total, 0),
+                      icono=chip("alert-triangle", CRITICO), acento=CRITICO),
+    ], columnas=3, altura=GAUGE_ALTURA), unsafe_allow_html=True)
 
 st.caption(
     "**Lectura:** disponibilidad media de los 8 transelevadores frente al "
@@ -440,30 +435,20 @@ with st.expander("Detalle individual de un SRM", expanded=False):
     ev_srm  = eventos[eventos["id_equipo"] == srm_det]
     row = tabla[tabla["id_equipo"] == srm_det].iloc[0]
 
-    cc1, cc2, cc3, cc4, cc5 = st.columns(5)
-    with cc1:
-        st.markdown(kpi_card_html("Disponibilidad", f"{fmt_es(row['disponibilidad'], 2)} %",
-                                  icono=chip("check-circle", EXITO), acento=EXITO),
-                    unsafe_allow_html=True)
-    with cc2:
-        mttr_str = fmt_es(row['mttr'], 1) if pd.notna(row['mttr']) else "—"
-        st.markdown(kpi_card_html(f"MTTR ({unidad_label})", mttr_str,
-                                  icono=chip("wrench", PRIMARIO), acento=PRIMARIO),
-                    unsafe_allow_html=True)
-    with cc3:
-        mtbf_str = fmt_es(row['mtbf'], 0) if pd.notna(row['mtbf']) else "—"
-        st.markdown(kpi_card_html(f"MTBF ({unidad_label})", mtbf_str,
-                                  icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA),
-                    unsafe_allow_html=True)
-    with cc4:
-        st.markdown(kpi_card_html("Ciclos",
-                                  fmt_es(int(row['ciclos']) if pd.notna(row['ciclos']) else 0, 0),
-                                  icono=chip("rotate", ACENTO), acento=ACENTO),
-                    unsafe_allow_html=True)
-    with cc5:
-        st.markdown(kpi_card_html("Fallos", fmt_es(int(row['n_fallos']), 0),
-                                  icono=chip("alert-triangle", CRITICO), acento=CRITICO),
-                    unsafe_allow_html=True)
+    mttr_str = fmt_es(row['mttr'], 1) if pd.notna(row['mttr']) else "—"
+    mtbf_str = fmt_es(row['mtbf'], 0) if pd.notna(row['mtbf']) else "—"
+    st.markdown(kpi_grid([
+        kpi_card_html("Disponibilidad", f"{fmt_es(row['disponibilidad'], 2)} %",
+                      icono=chip("check-circle", EXITO), acento=EXITO),
+        kpi_card_html(f"MTTR ({unidad_label})", mttr_str,
+                      icono=chip("wrench", PRIMARIO), acento=PRIMARIO),
+        kpi_card_html(f"MTBF ({unidad_label})", mtbf_str,
+                      icono=chip("clock", ADVERTENCIA), acento=ADVERTENCIA),
+        kpi_card_html("Ciclos", fmt_es(int(row['ciclos']) if pd.notna(row['ciclos']) else 0, 0),
+                      icono=chip("rotate", ACENTO), acento=ACENTO),
+        kpi_card_html("Fallos", fmt_es(int(row['n_fallos']), 0),
+                      icono=chip("alert-triangle", CRITICO), acento=CRITICO),
+    ], columnas=5), unsafe_allow_html=True)
 
     st.markdown("")
 

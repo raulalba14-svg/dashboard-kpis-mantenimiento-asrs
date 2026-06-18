@@ -10,7 +10,7 @@ from src.kpis import (
     delta_vs_periodo_anterior, serie_mensual,
 )
 from src.charts import (
-    serie_anual_area, gauge_disponibilidad, kpi_card_html, kpi_grid,
+    serie_anual_area, gauge_disponibilidad, kpi_card_html, kpi_grid, GAUGE_ALTURA,
 )
 from src.theme import aplicar_tema, PRIMARIO, ADVERTENCIA, CRITICO, ACENTO
 from src.styles import inyectar_css, hero, lectura_ejecutiva
@@ -164,7 +164,7 @@ with c_kpis:
             kpi_card_html("Ciclos totales", fmt_es(kpis['ciclos_totales'], 0),
                           delta_ciclos_txt, delta_ciclos_pos, icono=chip("rotate", ACENTO),
                           acento=ACENTO),
-        ]),
+        ], altura=GAUGE_ALTURA),
         unsafe_allow_html=True,
     )
 
