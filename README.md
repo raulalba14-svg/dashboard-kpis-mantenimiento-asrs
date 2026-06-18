@@ -46,9 +46,9 @@ en cada pantalla que indica, en una frase, qué mirar primero.
 | | |
 |---|---|
 | ![Resumen general](assets/screenshots/00_resumen.png) | ![Plano de fallos](assets/screenshots/01_fallos.png) |
-| **Resumen general** — disponibilidad de toda la instalación de un vistazo, evolución mensual y los 5 equipos que peor van. | **Mapa de fallos** — sinóptico de la instalación con semáforo de salud: detecta al instante qué equipo está en rojo. |
+| **Resumen general** — gauge de disponibilidad vs. objetivo, KPIs en rejilla, evolución mensual y los 5 equipos que peor van, con síntesis ejecutiva en semáforo. | **Mapa de fallos** — sinóptico de la instalación coloreado por tasa de fallos/día: detecta al instante qué equipo está en rojo. |
 | ![Rendimiento SRM](assets/screenshots/02_srm.png) | ![Comparativa de periodos](assets/screenshots/04_comparativa.png) |
-| **Rendimiento por equipo** — MTTR/MTBF/disponibilidad por transelevador y la relación entre carga de trabajo y averías. | **Comparativa de periodos** — A vs B con variación de cada KPI: ¿voy mejor o peor que antes? |
+| **Rendimiento por equipo** — MTTR/MTBF/disponibilidad por transelevador, heatmap del alzado y la relación carga ↔ averías con correlación. | **Comparativa de periodos** — tarjetas A vs B con mini-barras y variación de cada KPI: ¿voy mejor o peor que antes? |
 
 ---
 
@@ -67,6 +67,45 @@ descargables en CSV desde la propia app:
 - **Tasa de rechazo** — pallets rechazados por la inspección, por inspector y motivo.
 - **Expedición** — tiempo de completado de cada pedido, throughput y cuellos de botella.
 - **Variación entre periodos** — delta de cada KPI entre dos rangos de fechas.
+
+---
+
+## Funciones que van más allá de los números
+
+Calcular los KPIs es solo la mitad: el dashboard también los **interpreta y los deja
+llevarse a Excel**. Tres capas de funcionalidad lo separan de un gráfico estático:
+
+### 🟢 Síntesis ejecutiva con semáforo
+
+Cada módulo abre con una **lectura ejecutiva**: una o dos frases que traducen los
+datos del periodo a una conclusión accionable — qué equipo es el más crítico, si la
+carga explica los fallos (con su coeficiente de correlación), qué zona concentra las
+averías. La síntesis se **recalcula con los filtros activos** y se tiñe como
+**semáforo** (verde / ámbar / rojo) según la disponibilidad media frente al objetivo
+del 95 %, de modo que el estado de la instalación se capta antes de leer una sola cifra.
+
+### 📊 Visualizaciones operacionales
+
+No son gráficos por defecto: cada visual responde a una pregunta de mantenimiento.
+
+- **Gauge de disponibilidad vs. objetivo** — medidor con la línea del 95 % para ver de
+  un vistazo si la instalación está dentro o fuera de objetivo.
+- **Plano sinóptico con semáforo de salud** — el layout de la instalación coloreado por
+  **tasa de fallos/día** (no por número absoluto), con cortes calibrados por tipo de
+  equipo. El mismo color significa lo mismo sea cual sea el rango de fechas.
+- **Heatmap del alzado del pasillo** — posición física (altura × columna) donde se
+  concentran los fallos dentro de cada transelevador.
+- **Dispersión carga ↔ fallos** — ¿los SRM más solicitados averían más? Scatter con
+  correlación para decidir si conviene mantenimiento preventivo basado en ciclos.
+- **Tarjetas comparativas A vs B** — mini-barras proporcionales y chip de variación
+  por KPI, con aviso automático si los dos periodos tienen distinta duración.
+
+### 📥 Exportación a CSV (formato Excel ES)
+
+Cada módulo incluye un panel **«Descargar datos del módulo»** con un botón por dataset
+derivado (KPIs, series mensuales, top 5, comparativas…). La descarga aplica **los
+filtros activos** y usa separador `;`, decimal `,` y BOM UTF-8 para que Excel en
+español abra el archivo con las tildes y los números correctos sin retoques.
 
 ---
 
@@ -101,6 +140,10 @@ I/O (carga/filtrado)  ↔  cálculo (funciones puras)  ↔  presentación (chart
   aislados del resto.
 - **Capa de presentación** ([src/charts.py](src/charts.py), [pages/](pages/)) — los
   helpers de Plotly devuelven figuras, no pintan; cada módulo es un archivo.
+- **Capa de interpretación** ([src/insights.py](src/insights.py)) — funciones puras que
+  generan la síntesis ejecutiva de cada módulo a partir de los DataFrames filtrados.
+- **Exportación** ([src/export.py](src/export.py)) — panel de descarga CSV (formato
+  Excel ES) reutilizado por todos los módulos, sin duplicar lógica.
 - **Tests con pytest** ([tests/](tests/)) — cubren los KPIs y la coherencia del dataset.
 - **CI con GitHub Actions** ([.github/workflows/tests.yml](.github/workflows/tests.yml)) —
   los tests corren en cada push.
